@@ -1,0 +1,55 @@
+//
+//  EditMyStartProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/22.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "EditMyStartProjectViewController.h"
+#import "AddProjectDetailsViewController.h"
+#import "AddProjectReturnViewController.h"
+
+@interface EditMyStartProjectViewController ()
+
+@end
+
+@implementation EditMyStartProjectViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self backBarItem];
+    self.title = @"编辑项目";
+}
+//  添加项目详情
+- (IBAction)addProjectDetailsBtnClick:(id)sender {
+    
+    AddProjectDetailsViewController *addProjectDetailsVC = [AddProjectDetailsViewController new];
+    addProjectDetailsVC.projectId = _projectId;
+    addProjectDetailsVC.projectContentStr = _contentStr;
+    addProjectDetailsVC.uploadCount = _uploadCount;
+    [self.navigationController pushViewController:addProjectDetailsVC animated:YES];
+}
+//  添加回报
+- (IBAction)addReturnBtnClick:(id)sender {
+    AddProjectReturnViewController *addProjectReturnVC = [AddProjectReturnViewController new];
+    addProjectReturnVC.addType = @"AddReturn";
+    addProjectReturnVC.crowdFundId = _projectId;
+    [self.navigationController pushViewController:addProjectReturnVC animated:YES];
+}
+
+//  电话联系客服
+- (IBAction)phoneConnectBtnClick:(id)sender {
+}
+
+//  在线联系客服
+- (IBAction)onlineConnectBtnClick:(id)sender {
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

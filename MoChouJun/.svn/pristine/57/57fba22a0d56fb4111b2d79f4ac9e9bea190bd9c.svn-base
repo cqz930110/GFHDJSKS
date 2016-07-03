@@ -1,0 +1,247 @@
+//
+//  ShowAdManager.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 16/3/29.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "ShowAdManager.h"
+#import <SDWebImageManager.h>
+#import "UIDevice+Hardware.h"
+#import "AdDetailViewController.h"
+static BOOL isShow_ = NO;
+static NSString *adUrl_ = @"";
+static NSString *const kDatabaseFileName = @"AdImage.data";
+static NSString *_AdImageDirectory;
+static inline NSString* AdImageDirectory() {
+    if(!_AdImageDirectory)
+    {
+        NSString* cachesDirectory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        _AdImageDirectory = [[[cachesDirectory stringByAppendingPathComponent:[[NSProcessInfo processInfo] processName]] stringByAppendingPathComponent:@"AdImage"] copy];
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        BOOL isDir = YES;
+        BOOL isExist = [fileManager fileExistsAtPath:_AdImageDirectory isDirectory:&isDir];
+        if (!isExist)
+        {
+            [fileManager createDirectoryAtPath:_AdImageDirectory withIntermediateDirectories:YES attributes:nil error:NULL];
+        }
+    }
+    return _AdImageDirectory;
+}
+
+@implementation ShowAdManager
+// 保存图片的路径
++ (void)initialize
+{
+    //请求图片
+    [self requestAdImageUrlComplete:^(NSString *imageUrl , NSString *advUrl)
+    {
+        // 判断是否要更新图片
+        NSString *filePath = [AdImageDirectory() stringByAppendingPathComponent:kDatabaseFileName];
+        NSDictionary *imageDic= [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
+        
+        if (!imageDic || ![(NSString *)[imageDic allKeys].firstObject isEqualToString:imageUrl])
+        {
+            [[SDWebImageManager sharedManager] downloadImageWithURL:[NSURL URLWithString:imageUrl] options:0 progress:nil completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL)
+            {
+                if (image && finished)
+                {
+                    //保存 图片链接  和 图片  通过字典的方式  写入文件
+                    NSDictionary *contentDic = @{@"Image":image,@"AdUrl":advUrl};
+                    
+                    NSDictionary *adDic = [NSDictionary dictionaryWithObject:contentDic forKey:imageUrl];
+                    
+                    [NSKeyedArchiver archiveRootObject:adDic toFile:filePath];
+                }
+            }];
+        }
+    }];
+}
+
+#pragma mark - Public
+- (void)show
+{
+    if (isShow_)
+    {
+        return;
+    }
+    // 判断是否有图片
+    NSString *filePath = [AdImageDirectory() stringByAppendingPathComponent:kDatabaseFileName];
+    NSDictionary *adDic= [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
+    NSDictionary  *contentDic = [[adDic allValues] firstObject];
+    if (![contentDic isKindOfClass:[NSDictionary class]])
+    {
+        isShow_ = YES;
+        return;
+    }
+    
+    UIImage *image = [[contentDic allKeys] containsObject:@"Image"]?[contentDic valueForKey:@"Image"]:nil;
+    adUrl_ = [[contentDic allKeys] containsObject:@"Image"]?[contentDic valueForKey:@"AdUrl"]:nil;
+
+    if (image && [image isKindOfClass:[UIImage class]])
+    {
+        UIView *view = [[UIView alloc] init];
+        view.frame = [UIScreen mainScreen].bounds;
+        
+        UIImageView *imageView = [self imageViewWithImage:image];
+        [view addSubview:imageView];
+        
+        if (!IsStrEmpty(adUrl_))
+        {
+            UIButton *button = [self adDetailButton];
+            [view addSubview:button];
+        }
+        
+        UIButton *hideButton = [self hideButton];
+        [view addSubview:hideButton];
+        view.tag = 10000;
+       [[UIApplication sharedApplication].keyWindow addSubview:view];
+//        [self performSelector:@selector(hideImageView) withObject:nil afterDelay:3.5];
+        imageView.layer.opacity = 0.0;
+        
+        CAKeyframeAnimation *animation = [CAKeyframeAnimation animationWithKeyPath:@"opacity"];
+        animation.duration = 3.5;
+        animation.values = @[@(1.0),@(1.0),@(1.0),@(1.0),@(1.0),@(1.0),@(1.0),@(1.0),@(0.0)];
+        animation.delegate = self;
+        [imageView.layer addAnimation:animation forKey:@"animation"];
+    }
+    
+    isShow_ = YES;
+}
+
+#pragma mark - Request
++ (void)requestAdImageUrlComplete:(void(^)(NSString *imageUrl , NSString *advUrl))complete
+{
+    [[NetWorkingUtil netWorkingUtil] requestArr4MethodName:@"SysConfig/GetAsementImg" parameters:nil result:^(NSArray *arr, int status, NSString *msg)
+    {
+        if (arr.count == 0)
+        {
+            //禁止广告！
+            isShow_ = YES;
+            //请空保存的图片资源
+            NSString *filePath = [AdImageDirectory() stringByAppendingPathComponent:kDatabaseFileName];
+            [NSKeyedArchiver archiveRootObject:@{} toFile:filePath];
+            return ;
+        }
+        
+        for (NSDictionary *adImageDic in arr)
+        {
+            if ([[adImageDic valueForKey:@"ImageType"] integerValue] == [self deviceType])
+            {
+                if (complete)
+                {
+                    NSString *imageUrl = [adImageDic valueForKey:@"Images"];
+                    NSString *advUrl = [adImageDic valueForKey:@"AdvUrl"];
+                    complete(imageUrl,advUrl);
+                }
+                break;
+            }
+        }
+    } convertClassName:nil key:nil];
+}
+
+#pragma mark - Actions
+- (void)hideImageView
+{
+    NSArray *subviews = [UIApplication sharedApplication].keyWindow.subviews;
+    for (UIView *view in subviews)
+    {
+        if (view.tag == 10000)
+        {
+            [view removeFromSuperview];
+        }
+    }
+}
+
+- (void)adDetailAction
+{
+    [self hideImageView];
+    AdDetailViewController *vc = [[AdDetailViewController alloc] init];
+    vc.adDetailUrl = adUrl_;
+    [(UINavigationController *)[UIApplication sharedApplication].keyWindow.rootViewController pushViewController:vc animated:YES];
+}
+
+#pragma mark - Getter
+- (UIButton *)hideButton
+{
+    UIButton *hideButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    hideButton.frame = CGRectMake(SCREEN_WIDTH - 100 - 10, 20 , 100, 50);
+    [hideButton addTarget:self action:@selector(hideImageView) forControlEvents:UIControlEventTouchUpInside];
+//    hideButton.backgroundColor = [UIColor redColor];
+    return hideButton;
+}
+
+- (UIImageView *)imageViewWithImage:(UIImage *)image
+{
+    UIImageView *imageView = [[UIImageView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+    imageView.image = image;
+    imageView.contentMode = UIViewContentModeScaleAspectFill;
+    
+    imageView.userInteractionEnabled = YES;// 防止点击穿透
+    
+    return imageView;
+}
+
+- (UIButton *)adDetailButton
+{
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    button.frame = [UIScreen mainScreen].bounds;
+//    button.backgroundColor = [UIColor redColor];
+    [button addTarget:self action:@selector(adDetailAction) forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+
+#pragma mark - animationDelegate
+- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
+{
+    [self hideImageView];
+}
+
++(void)animationImageView:(UIImageView *)imageView
+{
+    [UIView animateWithDuration:0.5 animations:^{
+        imageView.alpha = 0.0;
+    } completion:^(BOOL finished) {
+        [imageView removeFromSuperview];
+    }];
+}
+
+#pragma mark - DeviceType
+/**
+ *  @return 5=适配机型 4/4S
+ 6=适配机型 5/5S
+ 7= 适配机型 6/6S;
+ 8 = 适配机型 6/6S Plus
+ */
++ (NSInteger)deviceType
+{
+    NSInteger devicePlatform = [[UIDevice currentDevice] platformType];
+    if (devicePlatform == UIDevice4iPhone ||
+        devicePlatform == UIDevice4SiPhone)
+    {
+        return 5;
+    }
+    
+    if (devicePlatform == UIDevice5iPhone ||
+        devicePlatform == UIDevice5CiPhone ||
+        devicePlatform == UIDevice5SiPhone ||
+        devicePlatform == UIDeviceSEiPhone)
+    {
+        return 6;
+    }
+    
+    if (devicePlatform == UIDevice6iPhone ||
+        devicePlatform == UIDevice6SiPhone)
+    {
+        return 7;
+    }
+    
+    if (devicePlatform == UIDevice6PlusiPhone ||
+        devicePlatform == UIDevice6SPlusiPhone)
+    {
+        return 8;
+    }
+    return 8;
+}
+@end

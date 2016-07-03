@@ -1,0 +1,161 @@
+//
+//  ProjectReturnTableViewCell.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/7.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "ProjectReturnTableViewCell.h"
+#import "ProjectReturnCollectionViewCell.h"
+#import "NSString+Adding.h"
+#import <MWPhotoBrowser.h>
+#import "BaseNavigationController.h"
+#import "ProjectReturnViewController.h"
+@interface ProjectReturnTableViewCell ()<UICollectionViewDataSource,UICollectionViewDelegate,MWPhotoBrowserDelegate>
+@property (weak, nonatomic) IBOutlet UICollectionView *returnCollectionView;
+@property (weak, nonatomic) IBOutlet UICollectionViewFlowLayout *returnLayout;
+@property (nonatomic,strong)NSArray *images;
+@end
+
+@implementation ProjectReturnTableViewCell
+
+- (void)awakeFromNib {
+    _returnCollectionView.delegate = self;
+    _returnCollectionView.dataSource = self;
+    
+    [_returnCollectionView registerNib:[UINib nibWithNibName:@"ProjectReturnCollectionViewCell" bundle:nil] forCellWithReuseIdentifier:@"ProjectReturnCollectionViewCell"];
+}
+
+- (void)setProjectReturnDic:(NSDictionary *)projectReturnDic
+{
+    _projectReturnDic = projectReturnDic;
+    
+    _returnAmountLab.text = [_projectReturnDic objectForKey:@"SupportAmount"];
+    if (IsStrEmpty([_projectReturnDic objectForKey:@"maxNumber"])) {
+        _returnLab1.text = @"0人已支持  无限制";
+        
+    }else{
+        _returnLab1.text = [NSString stringWithFormat:@"0人已支持  仅剩%@名额",[_projectReturnDic objectForKey:@"maxNumber"]];
+        [self setAmountLabStyle];
+    }
+    
+    if ([[_projectReturnDic objectForKey:@"repayDays"] integerValue] == 0)
+    {
+        _returnPeriodLab.text = @"立即";
+        _label2.text = @"发货";
+    }
+    else
+    {
+        _returnPeriodLab.text = [NSString stringWithFormat:@"%@天",[_projectReturnDic objectForKey:@"repayDays"]];
+    }
+    
+    _images = [_projectReturnDic objectForKey:@"Images"];
+    [_returnCollectionView reloadData];
+    
+    [self setLabStyle];
+}
+
+- (void)setAmountLabStyle
+{
+    _returnLab1.text = [NSString stringWithFormat:@"0人已支持  仅剩%@名额",[_projectReturnDic objectForKey:@"maxNumber"]];
+    NSMutableAttributedString *borrowStr = [[NSMutableAttributedString alloc]initWithString:_returnLab1.text];
+    [borrowStr beginEditing];
+    [borrowStr addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithHexString:@"#E90F0F"] range:NSMakeRange(9, _returnLab1.text.length - 11)];
+    _returnLab1.attributedText = borrowStr;
+}
+
+- (void)setLabStyle
+{
+    _returnContentLab.text = [NSString stringWithFormat:@"回报介绍：%@",[_projectReturnDic objectForKey:@"Description"]];
+    NSMutableAttributedString *borrowStr = [[NSMutableAttributedString alloc]initWithString:_returnContentLab.text];
+    [borrowStr beginEditing];
+    [borrowStr addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithHexString:@"#6E6E6E"] range:NSMakeRange(0, 5)];
+    _returnContentLab.attributedText = borrowStr;
+    
+    CGSize borrowSize =[ _returnContentLab.text sizeWithFont:[UIFont systemFontOfSize:13.0f] constrainedSize:CGSizeMake(290, 1000)];
+    _returnContentLab.size = borrowSize;
+    
+    _returnCollectionView.top = 47 + borrowSize.height + 10;
+    
+    if (_images.count == 0) {
+        
+        _returnCollectionView.hidden = YES;
+        _label1.top = 47 + borrowSize.height + 10;
+        _returnPeriodLab.top = 47 + borrowSize.height + 10;
+        _label2.top = 47 + borrowSize.height + 10;
+    }else{
+        _returnCollectionView.hidden = NO;
+        _label1.top = 47 + borrowSize.height + 10 + 65 + 7;
+        _returnPeriodLab.top = 47 + borrowSize.height + 10 + 65 + 7;
+        _label2.top = 47 + borrowSize.height + 10 + 65 + 7;
+    }
+}
+
+- (IBAction)deleteAction
+{
+    [self.delegates projectReturnTableViewCellDeleteProjectReturn:self];
+}
+
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+{
+    return _images.count;
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    ProjectReturnCollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"ProjectReturnCollectionViewCell" forIndexPath:indexPath];
+    
+    cell.projectReturnImageView.image = [_images objectAtIndex:indexPath.row];
+    return cell;
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    // 查看图片 //删除功能
+    MWPhotoBrowser *browser = [[MWPhotoBrowser alloc] initWithDelegate:self];
+    
+    // Set options
+    browser.displayActionButton = NO;
+    browser.displayNavArrows = YES;
+    browser.displaySelectionButtons = NO;
+    browser.zoomPhotosToFill = YES;
+    browser.enableGrid = NO;
+    browser.startOnGrid = NO;
+    browser.autoPlayOnAppear = NO;
+    [browser setCurrentPhotoIndex:indexPath.row];
+    
+    // Manipulate
+    [browser showNextPhotoAnimated:YES];
+    [browser showPreviousPhotoAnimated:YES];
+    // Present
+    BaseNavigationController *nc = [[BaseNavigationController alloc] initWithRootViewController:browser];
+    nc.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+    UIViewController *vc =  (UIViewController *)self.delegates;
+    [vc presentViewController:nc animated:YES completion:nil];
+}
+
+#pragma mark - MWPhotoBrowserDelegate
+- (NSUInteger)numberOfPhotosInPhotoBrowser:(MWPhotoBrowser *)photoBrowser
+{
+    return self.images.count;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser photoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo = [MWPhoto photoWithImage:_images[index]];
+    return photo;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser thumbPhotoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo = [MWPhoto photoWithImage:_images[index]];
+    return photo;
+}
+
+- (void)photoBrowserDidFinishModalPresentation:(MWPhotoBrowser *)photoBrowser
+{
+    [photoBrowser dismissViewControllerAnimated:YES completion:nil];
+}
+
+@end

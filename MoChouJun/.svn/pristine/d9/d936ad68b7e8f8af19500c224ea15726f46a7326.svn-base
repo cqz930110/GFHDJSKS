@@ -1,0 +1,21 @@
+//
+//  StartProjectTableViewCell.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/8.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+@class MyStartReturnObj;
+@interface StartProjectTableViewCell : UITableViewCell
+@property (weak, nonatomic) IBOutlet UILabel *startProjectTimeLab;
+@property (weak, nonatomic) IBOutlet UILabel *startProjectNameLab;
+@property (weak, nonatomic) IBOutlet UILabel *startProjectStateLab;
+@property (weak, nonatomic) IBOutlet UILabel *startProjectAmountLab;
+@property (weak, nonatomic) IBOutlet UILabel *startProjectMoneyLab;
+@property (weak, nonatomic) IBOutlet UIButton *skipProjectDetailBtn;
+
+@property (nonatomic,strong)MyStartReturnObj *myStartReturnObj;
+
+@end

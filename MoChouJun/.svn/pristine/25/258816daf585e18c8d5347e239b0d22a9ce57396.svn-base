@@ -1,0 +1,130 @@
+//
+//  ProjectReturnViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/7.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "ProjectReturnViewController.h"
+#import "ProjectReturnTableViewCell.h"
+#import "NSString+Adding.h"
+#import "AddProjectReturnViewController.h"
+@interface ProjectReturnViewController ()<UITableViewDataSource,UITableViewDelegate,AddProjectReturnViewControllerDelegate>
+@property (weak, nonatomic) IBOutlet UITableView *projectReturnTableView;
+@property (weak, nonatomic) NSDictionary *currentEditReturnDic;
+//@property (nonatomic,strong)NSMutableArray *returnDetailsArr;
+@end
+
+@implementation ProjectReturnViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"回报列表";
+
+    [self setInfo];
+    
+    _currentEditReturnDic = [NSDictionary dictionary];
+}
+
+- (void)setInfo
+{
+    
+    [self setupBarButtomItemWithTitle:@"添加" target:self action:@selector(addBtnClick) leftOrRight:NO];
+    [self setupBarButtomItemWithImageName:@"nav_back_normal" highLightImageName:nil selectedImageName:nil target:self action:@selector(backBtnClick) leftOrRight:YES];
+    
+    [_projectReturnTableView registerNib:[UINib nibWithNibName:@"ProjectReturnTableViewCell" bundle:nil] forCellReuseIdentifier:@"ProjectReturnTableViewCell"];
+}
+
+- (void)backBtnClick
+{
+    if ([self.delegate respondsToSelector:@selector(returnSavedReturnUserInfo:)]) {
+        [self.delegate returnSavedReturnUserInfo:_detailArr];
+    }
+    
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)addBtnClick
+{
+    AddProjectReturnViewController *addProjectVC = [AddProjectReturnViewController new];
+    addProjectVC.delegate = self;
+    [self.navigationController pushViewController:addProjectVC animated:YES];
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return _detailArr.count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSDictionary *dic = [_detailArr objectAtIndex:indexPath.section];
+    NSArray *arr = [dic objectForKey:@"Images"];
+    NSString *borrowStr = [NSString stringWithFormat:@"回报介绍：%@",[dic objectForKey:@"Description"]];
+    CGSize borrowSize =[borrowStr sizeWithFont:[UIFont systemFontOfSize:13.0f] constrainedSize:CGSizeMake(290, 1000)];
+    if (arr.count == 0) {
+        return 210 - 53 + borrowSize.height - 75;
+    }
+    return 210 - 53 + borrowSize.height;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    return 15;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"ProjectReturnTableViewCell";
+    ProjectReturnTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[ProjectReturnTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    
+    cell.projectReturnDic = [_detailArr objectAtIndex:indexPath.section];
+    cell.delegates = self;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    AddProjectReturnViewController *addReturnVC = [AddProjectReturnViewController new];
+    addReturnVC.delegate = self;
+    addReturnVC.editReturnDic = [_detailArr objectAtIndex:indexPath.section];
+    _currentEditReturnDic = [_detailArr objectAtIndex:indexPath.section];
+    [self.navigationController pushViewController:addReturnVC animated:YES];
+}
+
+#pragma mark - AddReturnViewControllerDelegate
+- (void)addReturnSavedReturnUserInfo:(NSDictionary *)userInfo isEdit:(BOOL)isEdit
+{
+    if (isEdit)
+    {
+        [_detailArr removeObject:_currentEditReturnDic];
+        [_detailArr addObject:userInfo];
+        [_projectReturnTableView reloadData];
+    }
+    else
+    {
+        [_detailArr addObject:userInfo];
+        [_projectReturnTableView reloadData];
+    }
+}
+
+- (void)projectReturnTableViewCellDeleteProjectReturn:(ProjectReturnTableViewCell *)cell
+{
+    NSIndexPath *indexPath = [_projectReturnTableView indexPathForCell:cell];
+    [_detailArr removeObjectAtIndex:indexPath.section];
+    [_projectReturnTableView beginUpdates];
+    [_projectReturnTableView deleteSections:[NSIndexSet indexSetWithIndex:indexPath.section] withRowAnimation:UITableViewRowAnimationAutomatic];
+    [_projectReturnTableView endUpdates];
+}
+
+@end

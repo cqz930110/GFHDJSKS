@@ -1,0 +1,254 @@
+//
+//  MyStartProjectDetailsViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/22.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "MyStartProjectDetailsViewController.h"
+#import "MyStartProjectDetailsTableViewCell.h"
+#import "MyStartNoReturnTableViewCell.h"
+#import "WeiProjectDetailsViewController.h"
+#import "MyStartSupportCountViewController.h"
+
+@interface MyStartProjectDetailsViewController ()<UITableViewDataSource,UITableViewDelegate>
+@property (weak, nonatomic) IBOutlet UILabel *myStartTotalLab;
+@property (weak, nonatomic) IBOutlet UITableView *myStartProjectDetailsTableView;
+
+@property (nonatomic,assign)int pageIndex;
+@property (nonatomic,strong)NSMutableArray *myStartProjectArr;
+@property (nonatomic,strong)NSDictionary *myStartNoReturnDic;
+@property (nonatomic,strong)NSDictionary *statDic;
+@end
+
+@implementation MyStartProjectDetailsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"筹款详情";
+    _pageIndex = 1;
+    [self backBarItem];
+    
+    [self setTableViewInfo];
+    
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self getMyStartDataInfo];
+}
+
+- (void)setTableViewInfo
+{
+    [_myStartProjectDetailsTableView registerNib:[UINib nibWithNibName:@"MyStartProjectDetailsTableViewCell" bundle:nil] forCellReuseIdentifier:@"MyStartProjectDetailsTableViewCell"];
+    [_myStartProjectDetailsTableView registerNib:[UINib nibWithNibName:@"MyStartNoReturnTableViewCell" bundle:nil] forCellReuseIdentifier:@"MyStartNoReturnTableViewCell"];
+    [self setupRefreshWithTableView:_myStartProjectDetailsTableView];
+    _myStartProjectDetailsTableView.tableFooterView = [UIView new];
+}
+
+- (void)getMyStartDataInfo
+{
+    [self.httpUtil requestDic4MethodName:@"User/RaiseDetails" parameters:@{@"CrowdFundId":@(_projectId)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [MBProgressHUD dismissHUDForView:self.view];
+            
+            [_myStartProjectDetailsTableView.mj_header endRefreshing];
+            [_myStartProjectDetailsTableView.mj_footer endRefreshing];
+            if (_pageIndex == 1) {
+                [_myStartProjectArr removeAllObjects];
+            }
+            
+            self.statDic = [dic objectForKey:@"Stat"];
+            _myStartTotalLab.text = [NSString stringWithFormat:@"共%@人支持,获得支持数%@次,筹款%@元",[_statDic objectForKey:@"SupportedMan"],[_statDic objectForKey:@"SupportedCount"],[_statDic objectForKey:@"RaisedAmount"]];
+            
+            self.myStartNoReturnDic = [dic objectForKey:@"customerRepay"];
+            
+            NSArray *arr = [dic objectForKey:@"DataSet"];
+            [self.myStartProjectArr addObjectsFromArray:arr];
+            
+            if ([[dic valueForKey:@"PageCount"] integerValue] == [[dic valueForKey:@"PageIndex"] integerValue])
+            {
+                [_myStartProjectDetailsTableView.mj_footer endRefreshingWithNoMoreData];
+            }
+            
+            if (_myStartProjectArr.count == 0 && _statDic.count != 0 && _myStartProjectArr.count == 0) {
+                [_myStartProjectDetailsTableView.mj_footer endRefreshingWithNoMoreData];
+            }
+            
+            [_myStartProjectDetailsTableView reloadData];
+            
+            if (_myStartProjectArr.count == 0 && _statDic.count == 0 && _myStartProjectArr.count == 0) {
+                self.hideNoMsg = NO;
+                self.noMsgView.top = 35;
+            }else{
+                self.hideNoMsg = YES;
+            }
+            
+        }else{
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    if (_myStartNoReturnDic.count == 0 && _myStartProjectArr.count == 0) {
+        return 1;
+    }else if (_myStartNoReturnDic.count != 0) {
+        return _myStartProjectArr.count + 1;
+    }
+    return _myStartProjectArr.count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (_myStartNoReturnDic.count == 0 && _myStartProjectArr.count == 0) {
+        return 70;
+    }else if (_myStartNoReturnDic.count != 0 && indexPath.section == _myStartProjectArr.count) {
+        return 70;
+    }
+    return 110;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    return 0.000001;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 15;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (_myStartNoReturnDic.count == 0 && _myStartProjectArr.count == 0) {
+        static NSString *cellID = @"MyStartNoReturnTableViewCell";
+        MyStartNoReturnTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+        if (cell == nil) {
+            cell = [[MyStartNoReturnTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+        }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.myStartNoReturnTotalLab.text = [NSString stringWithFormat:@"获得%@次的支持，共计%@元",[_statDic objectForKey:@"SupportedCount"],[_statDic objectForKey:@"RaisedAmount"]];
+        cell.myStartNoReturnBtn.tag = indexPath.section;
+        [cell.myStartNoReturnBtn addTarget:self action:@selector(myStartNoReturnBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        return cell;
+    }else if (_myStartNoReturnDic.count != 0 && indexPath.section == _myStartProjectArr.count) {
+        static NSString *cellID = @"MyStartNoReturnTableViewCell";
+        MyStartNoReturnTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+        if (cell == nil) {
+            cell = [[MyStartNoReturnTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+        }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.myStartNoReturnDic = _myStartNoReturnDic;
+        cell.myStartNoReturnBtn.tag = indexPath.section;
+        [cell.myStartNoReturnBtn addTarget:self action:@selector(myStartNoReturnBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        return cell;
+    }else{
+        static NSString *cellID = @"MyStartProjectDetailsTableViewCell";
+        MyStartProjectDetailsTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+        if (cell == nil) {
+            cell = [[MyStartProjectDetailsTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+        }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.myStartDic = _myStartProjectArr[indexPath.section];
+        cell.myStartBtn.tag = indexPath.section;
+        [cell.myStartBtn addTarget:self action:@selector(myStartBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        return cell;
+    }
+    return nil;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSDictionary *myStartDic;
+    if (indexPath.section == _myStartProjectArr.count) {
+        myStartDic = _myStartNoReturnDic;
+    }else{
+        myStartDic = [_myStartProjectArr objectAtIndex:indexPath.section];
+    }
+    WeiProjectDetailsViewController *weiProjectDetailsVC = [[WeiProjectDetailsViewController alloc] init];
+    weiProjectDetailsVC.projectId = [[myStartDic objectForKey:@"CrowdFundId"] intValue];
+    [self.navigationController pushViewController:weiProjectDetailsVC animated:YES];
+}
+
+- (void)myStartNoReturnBtnClick:(UIButton *)sender
+{
+    MyStartSupportCountViewController *supportPeopleVC = [MyStartSupportCountViewController new];
+    if (_myStartNoReturnDic.count == 0 && _myStartProjectArr.count == 0){
+        supportPeopleVC.repayId = 0;
+        supportPeopleVC.projectId = _projectId;
+    }else{
+        supportPeopleVC.repayId = [[_myStartNoReturnDic objectForKey:@"Id"] intValue];
+        supportPeopleVC.projectId = [[_myStartNoReturnDic objectForKey:@"CrowdFundId"] intValue];
+    }
+    [self.navigationController pushViewController:supportPeopleVC animated:YES];
+}
+
+- (void)myStartBtnClick:(UIButton *)sender
+{
+    NSDictionary *myStartDic = [_myStartProjectArr objectAtIndex:sender.tag];
+    MyStartSupportCountViewController *supportPeopleVC = [MyStartSupportCountViewController new];
+    supportPeopleVC.repayId = [[myStartDic objectForKey:@"Id"] intValue];
+    supportPeopleVC.projectId = [[myStartDic objectForKey:@"CrowdFundId"] intValue];
+    [self.navigationController pushViewController:supportPeopleVC animated:YES];
+}
+
+//   总共个数的跳转
+- (IBAction)myStartTotalBtnClick:(id)sender {
+    MyStartSupportCountViewController *supportPeopleVC = [MyStartSupportCountViewController new];
+    supportPeopleVC.repayId = 0;
+    supportPeopleVC.projectId = _projectId;
+    [self.navigationController pushViewController:supportPeopleVC animated:YES];
+}
+
+- (void)headerRefreshloadData
+{
+    _pageIndex = 1;
+    [self getMyStartDataInfo];
+}
+
+- (void)footerRefreshloadData
+{
+    if (_myStartProjectDetailsTableView.mj_footer.state != MJRefreshStateNoMoreData)
+    {
+        _pageIndex ++;
+        [self getMyStartDataInfo];
+    }
+}
+
+- (NSMutableArray *)myStartProjectArr
+{
+    if (!_myStartProjectArr) {
+        _myStartProjectArr = [NSMutableArray array];
+    }
+    return _myStartProjectArr;
+}
+
+- (NSDictionary *)myStartNoReturnDic
+{
+    if (!_myStartNoReturnDic) {
+        _myStartNoReturnDic = [NSDictionary dictionary];
+    }
+    return _myStartNoReturnDic;
+}
+
+- (NSDictionary *)statDic
+{
+    if (!_statDic) {
+        _statDic = [NSDictionary dictionary];
+    }
+    return _statDic;
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+@end

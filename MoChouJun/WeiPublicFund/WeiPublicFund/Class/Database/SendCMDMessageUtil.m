@@ -1,0 +1,128 @@
+//
+//  SendCMDMessageUtil.m
+//  WeiPublicFund
+//
+//  Created by Apple on 16/4/2.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "SendCMDMessageUtil.h"
+
+@implementation SendCMDMessageUtil
++ (void)sendAvatarCMDMEessage:(NSString *)avatar
+{
+    NSArray *conversations = [[EaseMob sharedInstance].chatManager conversations];
+    for (EMConversation *conversation in conversations) {
+        if (conversation.conversationType == eConversationTypeChat)
+        {
+            EMChatCommand *cmdChat = [[EMChatCommand alloc] init];
+            cmdChat.cmd = @"ChangeAvatar";
+            EMCommandMessageBody *body = [[EMCommandMessageBody alloc] initWithChatObject:cmdChat];
+            // 生成message
+            EMMessage *message = [[EMMessage alloc] initWithReceiver:conversation.chatter bodies:@[body]];
+            message.ext = @{@"CMDVAL":avatar};
+            message.messageType = eMessageTypeChat; // 设置为单聊消息
+            [[EaseMob sharedInstance].chatManager asyncSendMessage:message progress:nil];
+
+        }
+    }
+}
+
++ (void)sendGroupAvatarCMDEessage:(NSString *)avatar groupId:(NSString *)groupId
+{
+    EMChatCommand *cmdChat = [[EMChatCommand alloc] init];
+    cmdChat.cmd = @"ChangeAvatar";
+    EMCommandMessageBody *body = [[EMCommandMessageBody alloc] initWithChatObject:cmdChat];
+    // 生成message
+    EMMessage *message = [[EMMessage alloc] initWithReceiver:groupId bodies:@[body]];
+    message.ext = @{@"CMDVAL":avatar};
+    message.messageType = eMessageTypeGroupChat; // 设置为单聊消息
+    [[EaseMob sharedInstance].chatManager asyncSendMessage:message progress:nil];
+}
+
++ (void)sendGroupNameCMDEessage:(NSString *)name groupId:(NSString *)groupId
+{
+    EMChatCommand *cmdChat = [[EMChatCommand alloc] init];
+    cmdChat.cmd = @"ChangeAvatar";
+    EMCommandMessageBody *body = [[EMCommandMessageBody alloc] initWithChatObject:cmdChat];
+    // 生成message
+    EMMessage *message = [[EMMessage alloc] initWithReceiver:groupId bodies:@[body]];
+    message.ext = @{@"CMDVAL":name};
+    message.messageType = eMessageTypeGroupChat; // 设置为单聊消息
+    [[EaseMob sharedInstance].chatManager asyncSendMessage:message progress:nil];
+}
+
++ (void)sendNicknameCMDMEessage:(NSString *)name
+{
+    NSArray *conversations = [[EaseMob sharedInstance].chatManager conversations];
+    for (EMConversation *conversation in conversations) {
+        if (conversation.conversationType == eConversationTypeChat)
+        {
+            EMChatCommand *cmdChat = [[EMChatCommand alloc] init];
+            cmdChat.cmd = @"ChangeName";
+            EMCommandMessageBody *body = [[EMCommandMessageBody alloc] initWithChatObject:cmdChat];
+            // 生成message
+            EMMessage *message = [[EMMessage alloc] initWithReceiver:conversation.chatter bodies:@[body]];
+            message.ext = @{@"CMDVAL":name};
+            message.messageType = eMessageTypeChat; // 设置为单聊消息
+            [[EaseMob sharedInstance].chatManager asyncSendMessage:message progress:nil];
+            
+        }
+    }
+}
+
++ (void)sendChatApplyMessageReceiveUsername:(NSString *)username
+{
+    // 文本 发送给谁
+    // 表情映射。
+    EMChatText *textChat = [[EMChatText alloc] initWithText:@"我通过了你的好友验证请求，现在我们可以开始聊天了"];
+    EMTextMessageBody *body = [[EMTextMessageBody alloc] initWithChatObject:textChat];
+    EMMessage *message = [[EMMessage alloc] initWithReceiver:username bodies:@[body]];
+    message.requireEncryption = NO;
+    message.messageType = eMessageTypeChat;
+    message.ext = @{@"IsSys":@(YES)};//isSYS
+    [[EaseMob sharedInstance].chatManager asyncSendMessage:message
+                                                                          progress:nil];
+}
+
++ (void)sendGroupApplyMessageGroupId:(NSString *)groupId message:(NSString *)messageText
+{
+    messageText = [NSString stringWithFormat:@"邀请了 %@ 加入了群聊",messageText];
+    // 文本 发送给谁
+    EMChatText *textChat = [[EMChatText alloc] initWithText:messageText];
+    EMTextMessageBody *body = [[EMTextMessageBody alloc] initWithChatObject:textChat];
+    EMMessage *message = [[EMMessage alloc] initWithReceiver:groupId bodies:@[body]];
+    message.requireEncryption = NO;
+    message.messageType = eMessageTypeGroupChat;
+    message.ext = @{@"IsSys":@(YES)};//isSYS
+//    EMError *error;
+//    [[EaseMob sharedInstance].chatManager sendMessage:message progress:nil error:&error];
+//    if (error)
+//    {
+//        NSLog(@"%@",error);
+//    }
+   [[EaseMob sharedInstance].chatManager asyncSendMessage:message
+                                                                          progress:nil];
+}
+
+
++ (EMMessage *)sendGroupNoticeMessageGroupId:(NSString *)groupId message:(NSString *)messageText
+{
+    // 文本 发送给谁
+    EMChatText *textChat = [[EMChatText alloc] initWithText:messageText];
+    EMTextMessageBody *body = [[EMTextMessageBody alloc] initWithChatObject:textChat];
+    EMMessage *message = [[EMMessage alloc] initWithReceiver:groupId bodies:@[body]];
+    message.requireEncryption = NO;
+    message.messageType = eMessageTypeGroupChat;
+    message.ext = @{@"IsSys":@(YES)};//isSYS
+    //    EMError *error;
+    //    [[EaseMob sharedInstance].chatManager sendMessage:message progress:nil error:&error];
+    //    if (error)
+    //    {
+    //        NSLog(@"%@",error);
+    //    }
+    [[EaseMob sharedInstance].chatManager asyncSendMessage:message
+                                                  progress:nil];
+    return message;
+}
+@end

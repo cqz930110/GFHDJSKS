@@ -1,0 +1,448 @@
+//
+//  EaseConversationListViewController.m
+//  ChatDemo-UI3.0
+//
+//  Created by dhc on 15/6/25.
+//  Copyright (c) 2015年 easemob.com. All rights reserved.
+//
+
+#import "EaseConversationListViewController.h"
+
+#import "EaseMob.h"
+#import "EaseSDKHelper.h"
+#import "EaseEmotionEscape.h"
+#import "EaseConversationCell.h"
+#import "EaseConvertToCommonEmoticonsHelper.h"
+#import "NSDate+Category.h"
+#import "ConversationHeaderCell.h"
+#import "ContactListViewController.h"
+#import "SystemNotificationViewController.h"
+#import "PSChat.h"
+#import "ChatBuddyDAO.h"
+#import "ApplyViewController.h"
+@interface EaseConversationListViewController () <IChatManagerDelegate,ConversationHeaderCellDelegate>
+@property (strong, nonatomic)NSMutableDictionary *chatMessages;
+@property (strong, nonatomic) ConversationHeaderCell *headerCell;
+@property (assign, nonatomic) NSInteger systemNoticeCount;
+@end
+@implementation EaseConversationListViewController
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.tableView.separatorStyle = UITableViewCellSelectionStyleNone;
+    self.tableView.backgroundColor = [UIColor clearColor];
+}
+
+-(void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [self tableViewDidTriggerHeaderRefresh];
+    [self registerNotifications];
+    [self requestSystemUnreadState];
+}
+
+-(void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    [self unregisterNotifications];
+}
+
+#pragma mark - Table view data source
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataArray count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+//    if (indexPath.row == 0)
+//    {
+//        _headerCell = [[[NSBundle mainBundle] loadNibNamed:@"ConversationHeaderCell" owner:self options:nil] lastObject];
+//        _headerCell.delegate = self;
+//        NSInteger count = [ApplyViewController shareController].unReadCount;
+//        _headerCell.contactUnReadLabel.hidden = !(count);
+//        _headerCell.systemMessageUnreadLabel.hidden = !(_systemNoticeCount);
+//        return _headerCell;
+//    }
+    
+    NSString *CellIdentifier = [EaseConversationCell cellIdentifierWithModel:nil];
+    EaseConversationCell *cell = (EaseConversationCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+    if (cell == nil)
+    {
+        cell = [[EaseConversationCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
+    }
+   
+    id<IConversationModel> model = [self.dataArray objectAtIndex:indexPath.row];
+    PSChat *chat = [self.chatMessages objectForKey:model.conversation.chatter];
+    model.avatarURLPath = chat.avatar;
+    model.title = chat.showName;
+    cell.model = model;
+    if (_dataSource && [_dataSource respondsToSelector:@selector(conversationListViewController:latestMessageTitleForConversationModel:)]) {
+        cell.detailLabel.text = [_dataSource conversationListViewController:self latestMessageTitleForConversationModel:model];
+    }
+    else
+    {
+        cell.detailLabel.text = [self _latestMessageTitleForConversationModel:model];
+    }
+    
+    if (_dataSource && [_dataSource respondsToSelector:@selector(conversationListViewController:latestMessageTimeForConversationModel:)]) {
+        cell.timeLabel.text = [_dataSource conversationListViewController:self latestMessageTimeForConversationModel:model];
+    }
+    else
+    {
+        cell.timeLabel.text = [self _latestMessageTimeForConversationModel:model];
+    }
+    cell.stateView.imageView.contentMode = UIViewContentModeCenter;
+    if (chat.showType == 0) {
+
+    }else if (chat.showType == 1){
+        cell.stateView.imageView.image = [UIImage imageNamed:@"friendIcon"];
+    }else if (chat.showType == 2){
+        cell.stateView.imageView.image = [UIImage imageNamed:@"qun"];
+    }else if (chat.showType == 3){
+        cell.stateView.imageView.image = [UIImage imageNamed:@"projectZu"];
+    }
+    return cell;
+}
+
+#pragma mark - Table view delegate
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+//    if (indexPath.row == 0)
+//    {
+//        return 100;
+//    }
+    return [EaseConversationCell cellHeightWithModel:nil];
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+//    if (indexPath.row == 0)
+//    {
+//        return; 
+//    }
+    if (_delegate && [_delegate respondsToSelector:@selector(conversationListViewController:didSelectConversationModel:)]) {
+        EaseConversationModel *model = [self.dataArray objectAtIndex:indexPath.row];
+        [_delegate conversationListViewController:self didSelectConversationModel:model];
+    }
+}
+
+-(BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath{
+//    if (indexPath.row == 0)
+//    {
+//        return NO;
+//    }
+    return YES;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        EaseConversationModel *model = [self.dataArray objectAtIndex:indexPath.row];
+        [[EaseMob sharedInstance].chatManager removeConversationByChatter:model.conversation.chatter deleteMessages:YES append2Chat:YES];
+        [self.dataArray removeObjectAtIndex:indexPath.row];
+        [self.tableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:indexPath] withRowAnimation:UITableViewRowAnimationFade];
+    }
+}
+
+#pragma mark - data
+- (void)tableViewDidTriggerHeaderRefresh
+{
+    NSArray *conversations = [[EaseMob sharedInstance].chatManager conversations];
+    if (conversations.count == 0)
+    {
+//        CGFloat headerHeight = self.tableView.tableHeaderView.height;
+        self.noMsgView.frame = CGRectMake(0, 44, SCREEN_WIDTH, SCREEN_HEIGHT - 44);
+        self.noMsgView.showImageView.image = [UIImage imageNamed:@""];
+        self.noMsgView.showMsgLab.text = @"您还没有聊天记录,点击右上角“添加”按钮发起聊天吧";
+        [self.tableView addSubview:self.noMsgView];
+        [self.tableView.mj_header endRefreshing];
+//        NSLog(@"%@",self.tableView.subviews);
+        return;
+    }
+    else
+    {
+        [self.noMsgView removeFromSuperview];
+    }
+    [self.dataArray removeAllObjects];
+    NSArray* sorted = [conversations sortedArrayUsingComparator:
+                       ^(EMConversation *obj1, EMConversation* obj2){
+                           EMMessage *message1 = [obj1 latestMessage];
+                           EMMessage *message2 = [obj2 latestMessage];
+                           if(message1.timestamp > message2.timestamp)
+                           {
+                               return(NSComparisonResult)NSOrderedAscending;
+                           }
+                           else
+                           {
+                               return(NSComparisonResult)NSOrderedDescending;
+                           }
+                       }];
+    
+    NSMutableArray *converDics = [NSMutableArray arrayWithCapacity:sorted.count];
+    for (EMConversation *converstion in sorted)
+    {
+        EaseConversationModel *model = nil;
+        if (_dataSource && [_dataSource respondsToSelector:@selector(conversationListViewController:modelForConversation:)])
+        {
+            model = [_dataSource conversationListViewController:self
+                                           modelForConversation:converstion];
+        }
+        else
+        {
+            model = [[EaseConversationModel alloc] initWithConversation:converstion];
+        }
+        
+        if (model)
+        {
+            [self.dataArray addObject:model];
+        }
+        
+        // 获取数据
+        PSChat *chat = [ChatBuddyDAO chatBuddyWithUserame:model.conversation.chatter];
+        if (chat)
+        {
+            [self.chatMessages setObject:chat forKey:model.conversation.chatter];
+        }
+        
+        if (!chat)
+        {
+            //请求参数
+            NSString *type = converstion.conversationType == eConversationTypeChat?@"0":@"1";
+            NSDictionary *dic = [NSDictionary dictionaryWithObjects:@[type,model.conversation.chatter] forKeys:@[@"Type",@"Value"]];
+            [converDics addObject:dic];
+        }
+    }
+    
+    if (converDics.count)
+    {
+        [self requestChatMessageListWithChatters:converDics];
+    }
+    else
+    {
+        [self tableViewDidFinishTriggerHeader:YES reload:YES];
+    }
+}
+
+- (NSMutableDictionary *)chatMessages
+{
+    if (!_chatMessages)
+    {
+        _chatMessages = [NSMutableDictionary dictionary];
+    }
+    return _chatMessages;
+}
+
+#pragma mark - Request
+- (void)requestSystemUnreadState
+{
+    [self.httpUtil requestDic4MethodName:@"DynaMsg/UnreadMsg" parameters:nil result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1|| status == 2)
+        {
+            NSInteger count = [[dic valueForKey:@"count"] intValue];
+            _systemNoticeCount = count;
+            if (count)
+            {
+                _headerCell.systemMessageUnreadLabel.hidden = NO;
+            }
+            else
+            {
+                _headerCell.systemMessageUnreadLabel.hidden = YES;
+            }
+        }
+        else
+        {
+            _systemNoticeCount = 0;
+            _headerCell.systemMessageUnreadLabel.hidden = YES;
+        }
+    }];
+}
+
+- (void)requestChatMessageListWithChatters:(NSMutableArray *)chatters
+{
+    NSError *parseError = nil;
+    
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:chatters options:NSJSONWritingPrettyPrinted error:&parseError];
+    NSString *chatterJsonStr = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    NetWorkingUtil *util = [NetWorkingUtil netWorkingUtil];
+    [util requestArr4MethodName:@"Friend/ChatList" parameters:@{@"List":chatterJsonStr} result:^(NSArray *arr, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [arr enumerateObjectsUsingBlock:^(PSChat*  _Nonnull chat, NSUInteger idx, BOOL * _Nonnull stop)
+            {
+
+                if (chat.isDelete)
+                {
+                    [self.dataArray removeObjectAtIndex:idx];
+                }
+                else
+                {
+                    id<IConversationModel> model = self.dataArray[idx];
+                    [self.chatMessages setValue:chat forKey:model.conversation.chatter];
+                    
+                    // 保存到数据库
+                    [ChatBuddyDAO updateChatBuddy:chat];
+                }
+            }];
+            [self tableViewDidFinishTriggerHeader:YES reload:YES];
+        }
+        else
+        {
+            [MBProgressHUD showMessag:msg toView:self.view];
+        }
+    } convertClassName:@"PSChat" key:@"chatList"];
+}
+
+#pragma mark - ConversationHeaderCellDelegate
+- (void)optionHeaderCell:(ConversationHeaderCell *)cell optionType:(ConversationHeaderOptionType)optionType
+{
+    UIViewController *vc;
+    switch (optionType)
+    {
+        case ConversationHeaderOptionTypeContacts:
+            _contactsVC = [[ContactListViewController alloc] initWithNibName:nil bundle:nil];
+            vc = _contactsVC;
+            break;
+        case ConversationHeaderOptionTypeProjectGroup:
+            if (_groupController)
+            {
+                vc = _groupController;
+                [_groupController reloadDataSource];
+            }
+            else
+            {
+                vc = self.groupController;
+            }
+            break;
+        case ConversationHeaderOptionTypeSystemNotification:
+            vc = [[SystemNotificationViewController alloc] init];
+            
+            break;
+            
+        default:
+            break;
+    }
+
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+#pragma mark - IChatMangerDelegate
+-(void)didUnreadMessagesCountChanged
+{
+    [self tableViewDidTriggerHeaderRefresh];
+}
+
+- (void)didUpdateGroupList:(NSArray *)allGroups error:(EMError *)error
+{
+    [self tableViewDidTriggerHeaderRefresh];
+}
+
+#pragma mark - registerNotifications
+-(void)registerNotifications
+{
+    [self unregisterNotifications];
+    [[EaseMob sharedInstance].chatManager addDelegate:self delegateQueue:nil];
+}
+
+-(void)unregisterNotifications{
+    [[EaseMob sharedInstance].chatManager removeDelegate:self];
+}
+
+- (void)dealloc{
+    [self unregisterNotifications];
+}
+
+#pragma mark - Setter & Getter
+- (GroupListViewController *)groupController
+{
+    if (!_groupController)
+    {
+       _groupController = [[GroupListViewController alloc] initWithStyle:UITableViewStylePlain];
+        _groupController.groupType = 1;
+    }
+    return _groupController;
+}
+
+- (void)setUntreatedApplyCount:(NSString *)untreatedApplyCount
+{
+    _untreatedApplyCount = untreatedApplyCount;
+    NSInteger count = [_untreatedApplyCount intValue];
+    if (count == 0) {
+        self.headerCell.contactUnReadLabel.hidden = YES;
+    }
+    else
+    {
+        self.headerCell.contactUnReadLabel.hidden = NO;
+    }
+    if (_contactsVC)
+    {
+        [_contactsVC reloadApplyView];
+    }
+}
+
+#pragma mark - private
+- (NSString *)_latestMessageTitleForConversationModel:(id<IConversationModel>)conversationModel
+{
+    NSString *latestMessageTitle = @"";
+    EMMessage *lastMessage = [conversationModel.conversation latestMessage];
+    if (lastMessage) {
+        id<IEMMessageBody> messageBody = lastMessage.messageBodies.lastObject;
+        switch (messageBody.messageBodyType) {
+            case eMessageBodyType_Image:{
+                latestMessageTitle = NSLocalizedString(@"message.image1", @"[image]");
+            } break;
+            case eMessageBodyType_Text:{
+                
+                // 判断是否是好友申请message
+                NSString *text = ((EMTextMessageBody *)messageBody).text;
+                NSString *loginUsername = [[[EaseMob sharedInstance].chatManager loginInfo] objectForKey:kSDKUsername];
+                if (conversationModel.conversation.conversationType == eConversationTypeChat && [lastMessage.from isEqualToString:loginUsername] && [text rangeOfString:@"我通过了你的好友验证请求"].location != NSNotFound)
+                {
+                    PSChat *chat = [ChatBuddyDAO chatBuddyWithUserame:lastMessage.from];
+                    
+                    latestMessageTitle = [NSString stringWithFormat:@"你已经添加了\"%@\",现在可以开始聊天了",chat.showName];
+                    break;
+                }
+
+                NSString *didReceiveText = [EaseConvertToCommonEmoticonsHelper
+                                            convertToSystemEmoticons:((EMTextMessageBody *)messageBody).text];
+                latestMessageTitle = didReceiveText;
+            } break;
+                
+            case eMessageBodyType_Voice:{
+                latestMessageTitle = NSLocalizedString(@"message.voice1", @"[voice]");
+            } break;
+            case eMessageBodyType_Location: {
+                latestMessageTitle = NSLocalizedString(@"message.location1", @"[location]");
+            } break;
+            case eMessageBodyType_Video: {
+                latestMessageTitle = NSLocalizedString(@"message.video1", @"[video]");
+            } break;
+            case eMessageBodyType_File: {
+                latestMessageTitle = NSLocalizedString(@"message.file1", @"[file]");
+            } break;
+            default: {
+            } break;
+        }
+    }
+    return latestMessageTitle;
+}
+
+- (NSString *)_latestMessageTimeForConversationModel:(id<IConversationModel>)conversationModel
+{
+    NSString *latestMessageTime = @"";
+    EMMessage *lastMessage = [conversationModel.conversation latestMessage];;
+    if (lastMessage) {
+        double timeInterval = lastMessage.timestamp ;
+        if(timeInterval > 140000000000) {
+            timeInterval = timeInterval / 1000;
+        }
+        NSDateFormatter* formatter = [[NSDateFormatter alloc]init];
+        [formatter setDateFormat:@"YYYY-MM-dd"];
+        latestMessageTime = [formatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:timeInterval]];
+    }
+    return latestMessageTime;
+}
+
+@end

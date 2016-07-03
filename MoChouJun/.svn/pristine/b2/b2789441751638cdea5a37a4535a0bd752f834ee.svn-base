@@ -1,0 +1,18 @@
+//
+//  SupportPeopleTableViewCell.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/1.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+@class SupportPeople;
+@interface SupportPeopleTableViewCell : UITableViewCell
+@property (weak, nonatomic) IBOutlet UIImageView *supportPeopleImageView;
+@property (weak, nonatomic) IBOutlet UIButton *supportIconBtn;
+@property (weak, nonatomic) IBOutlet UILabel *supportPeopleNameLab;
+@property (weak, nonatomic) IBOutlet UILabel *supportPeopleAmountLab;
+@property (weak, nonatomic) IBOutlet UILabel *supportPeopleDataLab;
+@property (strong, nonatomic) SupportPeople *supportPeople;
+@end

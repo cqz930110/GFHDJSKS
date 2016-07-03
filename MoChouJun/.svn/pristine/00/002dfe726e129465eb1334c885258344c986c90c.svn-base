@@ -1,0 +1,29 @@
+//
+//  PSGroup.h
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/18.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface PSGroup : NSObject
+/// 群Id
+@property (assign, nonatomic) long Id;
+/// 环信群Id
+@property (copy, nonatomic)  NSString *easemobGroupId;
+/// 群主的用户Id
+@property (assign, nonatomic) long userId;
+/// 群图像地址
+@property (copy, nonatomic) NSString *avatar;
+/// 群名称
+@property (copy, nonatomic) NSString *groupName;
+///群类型 0聊天群 1项目群
+@property (assign, nonatomic) NSInteger typeId;
+
+@property (nonatomic,copy) NSString *headImg;
+
+/// 扩展属性（用于 database）
+@property (strong, nonatomic) NSDictionary *userInfo;
+@end

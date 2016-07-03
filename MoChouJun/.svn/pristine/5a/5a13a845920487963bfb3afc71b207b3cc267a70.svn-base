@@ -1,0 +1,941 @@
+//
+//  StartFirstProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/6.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "StartFirstProjectViewController.h"
+#import "StartSecondProjectViewController.h"
+#import "StartImageEditCollectionViewCell.h"
+#import "PSActionSheet.h"
+#import "UIImage-Extensions.h"
+#import "AudioView.h"
+#import "NSString+DocumentPath.h"
+#import "EMAudioRecorderUtil.h"
+#import "EMAudioPlayerUtil.h"
+#import "User.h"
+#import "ELCImagePickerHeader.h"
+#import <MWPhotoBrowser.h>
+#import "BaseNavigationController.h"
+#import <AVFoundation/AVFoundation.h>
+
+@interface UIImage (Seleced)
+@property (nonatomic,assign) BOOL isSelected;
+@property (nonatomic,copy)  NSString *assetUrl;
+@end
+
+@implementation UIImage (Seleced)
+
+- (void)setIsSelected:(BOOL)isSelected
+{
+    NSNumber *boolNumber = [NSNumber numberWithBool:isSelected];
+    objc_setAssociatedObject(self, @selector(isSelected), boolNumber, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (BOOL)isSelected
+{
+    NSNumber *number = objc_getAssociatedObject(self, _cmd);
+    return [number boolValue];
+}
+
+- (void)setAssetUrl:(NSString *)assetUrl
+{
+    objc_setAssociatedObject(self, @selector(assetUrl), assetUrl, OBJC_ASSOCIATION_COPY);
+}
+
+- (NSString *)assetUrl
+{
+    return objc_getAssociatedObject(self, _cmd);
+}
+
+@end
+
+@interface StartFirstProjectViewController ()<UITextViewDelegate,UICollectionViewDataSource,UICollectionViewDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate,UIActionSheetDelegate,ELCImagePickerControllerDelegate,MWPhotoBrowserDelegate,UITextFieldDelegate>
+@property (weak, nonatomic) IBOutlet UITextField *startTitleTextField;
+@property (weak, nonatomic) IBOutlet UITextView *introductTextView;
+@property (weak, nonatomic) IBOutlet UILabel *introductLab1;
+@property (weak, nonatomic) IBOutlet UILabel *introductLab2;
+@property (weak, nonatomic) IBOutlet UITextView *useTextView;
+@property (weak, nonatomic) IBOutlet UILabel *useLab1;
+@property (weak, nonatomic) IBOutlet UILabel *userLab2;
+@property (weak, nonatomic) IBOutlet UITextView *presentTextView;
+@property (weak, nonatomic) IBOutlet UILabel *presentLab1;
+@property (weak, nonatomic) IBOutlet UILabel *presentLab2;
+@property (weak, nonatomic) IBOutlet UICollectionView *startImageCollectionView;
+@property (weak, nonatomic) IBOutlet UICollectionViewFlowLayout *startImageLayout;
+@property (weak, nonatomic) IBOutlet UIButton *vidioBtn;
+
+@property (weak, nonatomic) IBOutlet UIButton *startImageBtn;
+@property (weak, nonatomic) IBOutlet UIButton *startVidioBtn;
+@property (weak, nonatomic) IBOutlet UIButton *beginBtn;
+@property (weak, nonatomic) IBOutlet UILabel *userNameLab;
+@property (weak, nonatomic) IBOutlet UILabel *vidioTimeLab;
+
+@property (nonatomic , strong) UIImagePickerController *imagePicerController;
+
+@property (nonatomic , strong) NSMutableArray *unSelectedImages;
+@property (nonatomic , assign) BOOL isOptionAllImage;
+@property (nonatomic , strong) UIImage *deleteImage;
+
+@property (nonatomic , strong) NSMutableArray *haveImages;
+
+@property (nonatomic,strong)AudioView *audioView;
+@property (nonatomic,strong)NSTimer *timer;
+@property (nonatomic,strong)NSString *audioPath;
+@property (nonatomic,strong)NSData *recodeData;
+@property (nonatomic,assign)BOOL recordPlaying;
+
+@property (nonatomic,assign)BOOL hideVideo;
+
+@property (nonatomic,assign)int playTime;
+@property (nonatomic,assign)int second;
+@property (nonatomic,assign)int minute;
+
+@property (nonatomic,assign)BOOL beginAnimation;
+@end
+
+@implementation StartFirstProjectViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = [UIColor whiteColor];
+    self.automaticallyAdjustsScrollViewInsets = NO;
+    [self backBarItem];
+    _isOptionAllImage = NO;
+    self.title = @"发起项目";
+    [self setInfo];
+    
+    _playTime = 0;
+    _second = 0;
+    _minute = 0;
+    _startTitleTextField.attributedPlaceholder = [[NSAttributedString alloc] initWithString:@"输入项目标题,30字内" attributes:@{NSForegroundColorAttributeName :[UIColor colorWithHexString:@"333333"]}];
+    [_startTitleTextField addTarget:self action:@selector(textDidChange) forControlEvents:UIControlEventEditingChanged];
+//    [_startTitleTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+    
+}
+
+- (void)textDidChange
+{
+    if (_startTitleTextField.text.length > 30) {
+        [MBProgressHUD showMessag:@"您的项目标题超过了最大长度哦" toView:self.view];
+        _startTitleTextField.text = [_startTitleTextField.text substringToIndex:30];
+        return;
+    }
+}
+
+#pragma mark - Setter & Getter
+- (NSMutableArray *)haveImages
+{
+    if (!_haveImages)
+    {
+        _haveImages = [NSMutableArray arrayWithCapacity:7];
+        [_haveImages addObject:self.deleteImage];
+    }
+    return _haveImages;
+}
+
+- (NSMutableArray *)unSelectedImages
+{
+    if (!_unSelectedImages)
+    {
+        _unSelectedImages = [NSMutableArray arrayWithCapacity:7];
+    }
+    return _unSelectedImages;
+}
+
+- (UIImage *)deleteImage
+{
+    if (!_deleteImage)
+    {
+        _deleteImage  = [UIImage imageNamed:@"add_image"];
+    }
+    return _deleteImage;
+}
+
+- (void)setInfo
+{
+    [_startTitleTextField setValue:[UIColor colorWithHexString:@"#DEDFE0"] forKeyPath:@"_placeholderLabel.textColor"];
+    
+    _startImageCollectionView.hidden = YES;
+    self.hideVideo = YES;
+    
+    [self setupBarButtomItemWithTitle:@"下一步" target:self action:@selector(nextBtnClick) leftOrRight:NO];
+    [self setupBarButtomItemWithImageName:@"nav_back_normal" highLightImageName:nil selectedImageName:nil target:self action:@selector(backNext) leftOrRight:YES];
+    
+    [_startImageCollectionView registerNib:[UINib nibWithNibName:@"StartImageEditCollectionViewCell" bundle:nil] forCellWithReuseIdentifier:@"StartImageEditCollectionViewCell"];
+    if (SCREEN_WIDTH == 375) {
+        _startImageLayout.itemSize = CGSizeMake((SCREEN_WIDTH - 30 - 5 * 5) / 6, 45);
+    }else if (SCREEN_WIDTH == 414){
+        _startImageLayout.itemSize = CGSizeMake(58, 45);
+    }else{
+        _startImageLayout.itemSize = CGSizeMake((SCREEN_WIDTH - 30 - 5 * 5) / 6, 45);
+    }
+    
+    _startImageCollectionView.delegate = self;
+    _startImageCollectionView.dataSource = self;
+}
+
+- (void)backNext
+{
+    [self stopVidio];
+    if (!IsStrEmpty(_startTitleTextField.text) || !IsStrEmpty(_introductTextView.text) || !IsStrEmpty(_useTextView.text) || !IsStrEmpty(_presentTextView.text) || _haveImages.count > 1) {
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"差点就成功了,努力完善下!" delegate:self cancelButtonTitle:@"我再努力" otherButtonTitles:@"再想想", nil];
+        alert.tag = 40000;
+        [alert show];
+    }else{
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+
+//   播发录音
+- (IBAction)beginBtnClick:(id)sender {
+    if (_beginBtn.tag == 1) {
+        _beginBtn.tag = 2;
+        [_beginBtn setImage:[UIImage imageNamed:@"pause"] forState:UIControlStateNormal];
+        
+        if (!IsStrEmpty(_audioPath))
+        {
+            [self playRecordWithPath:_audioPath];
+            
+            _timer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(beginVoice) userInfo:nil repeats:YES];
+        }
+        else
+        {
+            NSLog(@"音频有问题");
+        }
+    }else if (_beginBtn.tag == 2){
+        [self stopVidio];
+    }
+}
+
+//  暂停语音
+- (void)stopVidio
+{
+    _beginBtn.tag = 1;
+    [_beginBtn setImage:[UIImage imageNamed:@"begin"] forState:UIControlStateNormal];
+    
+    _vidioTimeLab.text = [NSString stringWithFormat:@"%02d:%02d/%02d:%02d",_minute,_second,_minute,_second];
+    
+    _playTime = _minute * 60 + _second;
+    
+    [_timer invalidate];
+    
+    [EMAudioPlayerUtil stopCurrentPlaying];
+}
+
+- (void)beginVoice
+{
+    _playTime --;
+    
+    int minute1 = _playTime / 60;
+    int second1 = _playTime - minute1 * 60;
+    
+    _vidioTimeLab.text = [NSString stringWithFormat:@"%02d:%02d/%02d:%02d",minute1,second1,_minute,_second];
+}
+
+//  弹出删除语音view
+- (IBAction)vidioBtnClick:(id)sender {
+    
+    [self stopVidio];
+    PSActionSheet *actionSheet = [[PSActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"重新上传",@"删除录音",nil];
+    actionSheet.tag = 10000;
+    [actionSheet showInView:self.view];
+}
+
+//  上传语音
+- (IBAction)selectVidioClick:(id)sender {
+    
+    if ([[AVAudioSession sharedInstance] respondsToSelector:@selector(requestRecordPermission:)]) {
+        [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
+            if (granted) {
+                _audioView =  [[[NSBundle mainBundle] loadNibNamed:@"AudioView" owner:self options:nil] firstObject];
+                [_audioView setFrame:CGRectMake(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)];
+                
+                UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(Actiondo)];
+                [_audioView.cancelView addGestureRecognizer:tapGesture];
+                
+                [_audioView.audioBtn addTarget:self action:@selector(audioBeginBtnClick) forControlEvents:UIControlEventTouchUpInside];
+                _audioView.audioBtn.tag = 1;
+                [self.view addSubview:_audioView];
+            }
+            else {
+                [MBProgressHUD showMessag:@"请打开系统“设置-隐私-麦克风”,允许陌筹君使用您的麦克风" toView:self.view];
+            }
+        }];
+    }
+}
+
+//  选择图片
+- (IBAction)selectImageClick:(id)sender {
+    
+    if (_haveImages.count == 7) {
+        [MBProgressHUD showMessag:@"现在最多只能发6张图片哦，阿么的空间耗不起呢" toView:self.view];
+    }else{
+        PSActionSheet *actionSheet = [[PSActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍照",@"从相册中选择",nil];
+        actionSheet.tag = 20000;
+        [actionSheet showInView:self.view];
+    }
+}
+
+//- (void)textFieldChange:(UITextField *)textField
+//{
+//    if ([self convertToInt:_startTitleTextField.text] > 60) {
+//        _startTitleTextField.text = [_startTitleTextField.text substringToIndex:60];
+//    }
+//}
+//   下一步
+- (void)nextBtnClick
+{
+    [self stopVidio];
+    
+    if (IsStrEmpty(_startTitleTextField.text)) {
+        [MBProgressHUD showMessag:@"项目内容要详细填写,才能获得更多支持哦" toView:self.view];
+        return;
+    }
+    if (IsStrEmpty(_introductTextView.text)) {
+        [MBProgressHUD showMessag:@"项目内容要详细填写,才能获得更多支持哦" toView:self.view];
+        return;
+    }
+    if (IsStrEmpty(_useTextView.text)) {
+        [MBProgressHUD showMessag:@"项目内容要详细填写,才能获得更多支持哦" toView:self.view];
+        return;
+    }
+    if (IsStrEmpty(_presentTextView.text)) {
+        [MBProgressHUD showMessag:@"项目内容要详细填写,才能获得更多支持哦" toView:self.view];
+        return;
+    }
+    if (_haveImages.count <= 1) {
+        [MBProgressHUD showMessag:@"上传几张美图丰富项目,会获得更多支持哦" toView:self.view];
+        return;
+    }
+    
+    if (_startTitleTextField.text.length < 10) {
+        [MBProgressHUD showMessag:@"项目标题过于简短,请输入至少10个字符" toView:self.view];
+        return;
+    }
+    if (_introductTextView.text.length < 10) {
+        [MBProgressHUD showMessag:@"项目介绍过于简短,请输入至少10个字符" toView:self.view];
+        return;
+    }
+    if (_useTextView.text.length < 10) {
+        [MBProgressHUD showMessag:@"筹款用途过于简短,请输入至少10个字符" toView:self.view];
+        return;
+    }
+    if (_presentTextView.text.length < 10) {
+        [MBProgressHUD showMessag:@"介绍自己过于简短,请输入至少10个字符" toView:self.view];
+        return;
+    }
+    
+    if (_startTitleTextField.text.length > 30) {
+        [MBProgressHUD showMessag:@"您的项目标题超过了最大长度哦" toView:self.view];
+        return;
+    }
+    
+//    if (_haveImages.count > 1) {
+//        [_haveImages removeLastObject];
+//    }
+    
+    NSDictionary *dic;
+    if (IsStrEmpty(_audioPath)) {
+        dic = @{@"Title":_startTitleTextField.text,
+                              @"Introduct":_introductTextView.text,
+                              @"Use":_useTextView.text,
+                              @"Present":_presentTextView.text,
+                              @"ProjectImages":_haveImages,
+                              @"VideoData":@"",
+                              @"Video":@""};
+    }else{
+        dic = @{@"Title":_startTitleTextField.text,
+                              @"Introduct":_introductTextView.text,
+                              @"Use":_useTextView.text,
+                              @"Present":_presentTextView.text,
+                              @"ProjectImages":_haveImages,
+                              @"VideoData":_recodeData,
+                              @"Video":_audioPath};
+    }
+    
+    StartSecondProjectViewController *startSecondVC = [StartSecondProjectViewController new];
+    startSecondVC.startProjectDic = dic;
+    [self.navigationController pushViewController:startSecondVC animated:YES];
+}
+//   TextViewDelegate
+- (void)textViewDidChange:(UITextView *)textView
+{
+    if (textView.tag == 1) {
+        if (IsStrEmpty(textView.text)) {
+            _introductLab1.hidden = NO;
+            _introductLab2.hidden = NO;
+        }else{
+            _introductLab1.hidden = YES;
+            _introductLab2.hidden = YES;
+        }
+    }else if (textView.tag == 2){
+        if (IsStrEmpty(_useTextView.text)) {
+            _useLab1.hidden = NO;
+            _userLab2.hidden = NO;
+        }else{
+            _useLab1.hidden = YES;
+            _userLab2.hidden = YES;
+        }
+    }else if (_presentTextView.tag == 3){
+        if (IsStrEmpty(_presentTextView.text)) {
+            _presentLab1.hidden = NO;
+            _presentLab2.hidden = NO;
+        }else{
+            _presentLab1.hidden = YES;
+            _presentLab2.hidden = YES;
+        }
+    }
+}
+
+- (UIImagePickerController *)imagePicerController
+{
+    if (!_imagePicerController)
+    {
+        _imagePicerController = [[UIImagePickerController alloc]init];
+        _imagePicerController.navigationBar.tintColor = [UIColor colorWithHexString:@"#2B2B2B"];
+        _imagePicerController.navigationBar.barTintColor = NaviColor;
+        [_imagePicerController.navigationBar setTitleTextAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:19.0f],NSForegroundColorAttributeName:[UIColor colorWithHexString:@"#2B2B2B"]}];
+        _imagePicerController.delegate = self;
+        _imagePicerController.allowsEditing = YES;
+    }
+    return _imagePicerController;
+}
+
+#pragma mark - UIActionSheetDelegate
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (actionSheet.tag == 10000) {
+        if (buttonIndex == 0) {
+            
+            _audioPath = nil;
+            _recodeData = nil;
+            
+            self.hideVideo = YES;
+            
+            if (_haveImages.count > 1) {
+                _startImageCollectionView.top = _startImageCollectionView.frame.origin.y;
+            }
+            
+            _audioView =  [[[NSBundle mainBundle] loadNibNamed:@"AudioView" owner:self options:nil] firstObject];
+            [_audioView setFrame:CGRectMake(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)];
+            
+            UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(Actiondo)];
+            [_audioView.cancelView addGestureRecognizer:tapGesture];
+            
+            [_audioView.audioBtn addTarget:self action:@selector(audioBeginBtnClick) forControlEvents:UIControlEventTouchUpInside];
+            _audioView.audioBtn.tag = 1;
+            [self.view addSubview:_audioView];
+        }else if (buttonIndex == 1){
+            _audioPath = nil;
+            _recodeData = nil;
+            self.hideVideo = YES;
+            if (_haveImages.count > 1) {
+                _startImageCollectionView.top = _startImageCollectionView.frame.origin.y;
+            }
+        }
+        
+        
+        
+    }else if (actionSheet.tag == 20000){
+        if (buttonIndex == 0)
+        {
+            // 判断是否能拍照
+            if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera])
+            {
+                self.imagePicerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+                self.imagePicerController.showsCameraControls = YES;//takePicture
+                [self presentViewController:self.imagePicerController animated:YES completion:nil];
+            }
+            else
+            {
+                ULog(@"设备不支持");
+            }
+        }
+        else if (buttonIndex == 1)
+        {
+            ELCImagePickerController *elcPicker = [[ELCImagePickerController alloc] initImagePicker];
+            //            elcPicker.navigationBar.titleTextAttributes
+            elcPicker.navigationBar.tintColor = [UIColor whiteColor];
+            elcPicker.navigationBar.barTintColor = NaviColor;
+            elcPicker.maximumImagesCount = 6 - (_haveImages.count - 1); //Set the maximum number of images to select to 100
+            elcPicker.returnsOriginalImage = YES; //Only return the fullScreenImage, not the fullResolutionImage
+            elcPicker.returnsImage = YES; //Return UIimage if YES. If NO, only return asset location information
+            elcPicker.onOrder = YES; //For multiple image selection, display and return order of selected images
+            elcPicker.mediaTypes = @[(NSString *)kUTTypeImage]; //Supports image and movie types
+            
+            elcPicker.imagePickerDelegate = self;
+            
+            [self presentViewController:elcPicker animated:YES completion:nil];
+        }
+    }
+}
+
+#pragma mark - ELCImagePickerControllerDelegate Methods
+- (void)elcImagePickerController:(ELCImagePickerController *)picker didFinishPickingMediaWithInfo:(NSArray *)info
+{
+    _startImageCollectionView.hidden = NO;
+    
+    if (_haveImages.count == 1 && !IsStrEmpty(_audioPath)) {
+        _vidioBtn.top = _startImageCollectionView.frame.origin.y + 50;
+        _beginBtn.top = _startImageCollectionView.frame.origin.y + 50;
+        _userNameLab.top = _vidioBtn.top + 4;
+        _vidioTimeLab.top = _vidioBtn.top + 23;
+    }
+    
+    [self dismissViewControllerAnimated:YES completion:nil];
+    
+//    NSMutableArray *images = [NSMutableArray arrayWithCapacity:[info count]];
+    for (NSDictionary *dict in info) {
+        if ([dict objectForKey:UIImagePickerControllerMediaType] == ALAssetTypePhoto)
+        {
+            UIImage *originalImage = [dict objectForKey:UIImagePickerControllerOriginalImage];
+            if (originalImage)
+            {
+                UIImage* image= [UIImage fixOrientation:originalImage];
+                NSURL *imageUrl = [dict objectForKey:UIImagePickerControllerReferenceURL];
+                image.assetUrl = imageUrl.absoluteString;
+//                [self.haveImages addObject:image];
+                if (![self isAddedImage:image])
+                {
+                    [self.haveImages insertObject:image atIndex:0];
+                }
+            } else {
+                NSLog(@"UIImagePickerControllerReferenceURL = %@", dict);
+            }
+        } else {
+            NSLog(@"Uknown asset type");
+        }
+    }
+
+    [_startImageCollectionView reloadData];
+}
+
+- (BOOL)isAddedImage:(UIImage *)image
+{
+    NSString *newAssetUrl = image.assetUrl;
+    if (newAssetUrl.length <= 0) return NO;
+    for (UIImage *addedImage in self.haveImages)
+    {
+        NSString *oldAssetUrl = addedImage.assetUrl;
+        if (oldAssetUrl.length > 0)
+        {
+            if ([oldAssetUrl isEqualToString:newAssetUrl])
+            {
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation
+{
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+        return YES;
+    } else {
+        return toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown;
+    }
+}
+
+- (void)elcImagePickerControllerDidCancel:(ELCImagePickerController *)picker
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark - UIImagePickerControllerDelegate & UINavigationControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary<NSString *,id> *)info
+{
+    _startImageCollectionView.hidden = NO;
+    
+    UIImage *optionImage = [UIImage fixOrientation:[info objectForKey:@"UIImagePickerControllerEditedImage"]];
+    optionImage.isSelected = YES;
+    if (_haveImages.count == 7)
+    {
+//        [_haveImages removeLastObject];
+        [_haveImages insertObject:optionImage atIndex:0];
+        _isOptionAllImage = YES;
+    }
+    else
+    {
+        [_haveImages insertObject:optionImage atIndex:0];
+        _isOptionAllImage = NO;
+    }
+    
+    [picker dismissViewControllerAnimated:YES completion:nil];
+    
+    [_startImageCollectionView reloadData];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
+{
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark - UICollectionViewDataSource & UICollectionViewDelegate
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+{
+    return self.haveImages.count;
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    StartImageEditCollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"StartImageEditCollectionViewCell" forIndexPath:indexPath];
+    
+    if (indexPath.row == _haveImages.count-1 && !_isOptionAllImage)
+    {
+        cell.imageEditImageView.contentMode = UIViewContentModeScaleAspectFit;
+        cell.deleteBtn.hidden = YES;
+    }
+    else
+    {
+        cell.imageEditImageView.contentMode = UIViewContentModeScaleToFill;
+        cell.deleteBtn.hidden = NO;
+        cell.deleteBtn.tag = indexPath.row;
+        [cell.deleteBtn addTarget:self action:@selector(deleteBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        
+    }
+    cell.imageEditImageView.image = _haveImages[indexPath.row];
+    return cell;
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (!_isOptionAllImage && indexPath.row == _haveImages.count-1)
+    {
+        PSActionSheet *actionSheet = [[PSActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍照",@"从相册中选择",nil];
+        actionSheet.tag = 20000;
+        [actionSheet showInView:self.view];
+    }else{
+        // 查看图片 //删除功能
+        MWPhotoBrowser *browser = [[MWPhotoBrowser alloc] initWithDelegate:self];
+        
+        // Set options
+        browser.displayActionButton = NO;
+        browser.displayNavArrows = YES;
+        browser.displaySelectionButtons = NO;
+        browser.zoomPhotosToFill = YES;
+        browser.enableGrid = NO;
+        browser.startOnGrid = NO;
+        browser.autoPlayOnAppear = NO;
+
+        // Manipulate
+        [browser showNextPhotoAnimated:YES];
+        [browser showPreviousPhotoAnimated:YES];
+        // Present
+        BaseNavigationController *nc = [[BaseNavigationController alloc] initWithRootViewController:browser];
+        nc.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+        [self presentViewController:nc animated:YES completion:nil];
+    }
+}
+
+//  删除选中图片
+- (void)deleteBtnClick:(UIButton *)sender
+{
+    [_haveImages removeObjectAtIndex:sender.tag];
+    if (_haveImages.count == 1) {
+        _startImageCollectionView.hidden = YES;
+        
+        if (!IsStrEmpty(_audioPath)) {
+            _vidioBtn.top = _startImageCollectionView.frame.origin.y;
+            _beginBtn.top = _startImageCollectionView.frame.origin.y;
+            _userNameLab.top = _vidioBtn.top + 4;
+            _vidioTimeLab.top = _vidioBtn.top + 23;
+        }
+    }
+    
+    [_startImageCollectionView reloadData];
+}
+
+
+#pragma mark  录音相关点击
+- (void)Actiondo
+{
+    if (_audioView.audioBtn.tag == 2) {
+        [_audioView.audioBtn setImage:[UIImage imageNamed:@"begin_vidio"] forState:UIControlStateNormal];
+        _audioView.audioBtn.tag = 1;
+        
+        self.beginAnimation = NO;
+        
+        [[EMCDDeviceManager sharedInstance] asyncStopRecordingWithCompletion:^(NSString *recordPath, NSInteger aDuration, NSError *error) {
+            if (!error) {
+                [_timer invalidate];
+                _audioPath = recordPath;
+                UIAlertView *audioShow = [[UIAlertView alloc]initWithTitle:nil message:@"阿么要上传咯" delegate:self cancelButtonTitle:@"我再改改" otherButtonTitles:@"听从阿么", nil];
+                audioShow.tag = 10000;
+                [audioShow show];
+            }
+            else {
+                [_timer invalidate];
+                _audioPath = nil;
+                [MBProgressHUD showMessag:@"亲，你的录音时间太短了。。" toView:self.view];
+            }
+        }];
+    }else{
+        [_audioView removeFromSuperview];
+    }
+    
+    
+}
+//  录制语音
+- (void)audioBeginBtnClick
+{
+    if (_audioView.audioBtn.tag == 1) {
+        [_audioView.audioBtn setImage:[UIImage imageNamed:@"stop_vidio"] forState:UIControlStateNormal];
+        _audioView.audioBtn.tag = 2;
+        _playTime = 0;
+        [_audioView.showTimeLab setText:[NSString stringWithFormat:@"00:00"]];
+        [_audioView.showTimeLab setTextColor:[UIColor colorWithHexString:@"#E90F0F"]];
+        
+        self.beginAnimation = YES;
+        
+        NSString *recodeFile = [NSString documentPathWith:@"Audio"];
+        [[EMCDDeviceManager sharedInstance] asyncStartRecordingWithFileName:recodeFile completion:^(NSError *error) {
+            //设置定时检测
+            _timer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(detectionVoice) userInfo:nil repeats:YES];
+            
+        }];
+        
+    }else{
+        [_audioView.audioBtn setImage:[UIImage imageNamed:@"begin_vidio"] forState:UIControlStateNormal];
+        _audioView.audioBtn.tag = 1;
+        
+        self.beginAnimation = NO;
+        
+        [[EMCDDeviceManager sharedInstance] asyncStopRecordingWithCompletion:^(NSString *recordPath, NSInteger aDuration, NSError *error) {
+            if (!error) {
+                [_timer invalidate];
+                _audioPath = recordPath;
+                UIAlertView *audioShow = [[UIAlertView alloc]initWithTitle:nil message:@"阿么要上传咯" delegate:self cancelButtonTitle:@"我再改改" otherButtonTitles:@"听从阿么", nil];
+                audioShow.tag = 10000;
+                [audioShow show];
+            }
+            else {
+                [_timer invalidate];
+                _audioPath = nil;
+                [MBProgressHUD showMessag:@"亲，你的录音时间太短了。。" toView:self.view];
+            }
+        }];
+    }
+}
+
+- (void)detectionVoice
+{
+    [[EMAudioRecorderUtil recorder] updateMeters];//刷新音量数据
+    //    [self.recorder updateMeters];
+    //获取音量的平均值  [recorder averagePowerForChannel:0];
+    //音量的最大值  [recorder peakPowerForChannel:0];
+    
+//    double lowPassResults = pow(10, (0.05 * [[EMAudioRecorderUtil recorder] peakPowerForChannel:0]));
+    //最大50  0
+    //图片 小-》大
+//    [self configRecordingHUDImageWithPeakPower:lowPassResults];  //  暂时不用
+    if ([[AVAudioSession sharedInstance] respondsToSelector:@selector(requestRecordPermission:)]) {
+        [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
+            if (granted) {
+                _playTime ++;
+                [self updateAudioRecordTime];
+            }
+            else {
+                [_timer invalidate];
+                self.beginAnimation = NO;
+                [_audioView.audioBtn setImage:[UIImage imageNamed:@"begin_vidio"] forState:UIControlStateNormal];
+                [_audioView.showTimeLab setText:[NSString stringWithFormat:@"%@",@"点击录音"]];
+                [_audioView.showTimeLab setTextColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+            }
+        }];
+    }
+}
+
+- (void)updateAudioRecordTime {
+    _minute = _playTime / 60.0;
+    _second = _playTime - _minute*60;
+    
+    [_audioView.showTimeLab setText:[NSString stringWithFormat:@"%02d:%02d",_minute,_second]];
+    [_audioView.showTimeLab setTextColor:[UIColor colorWithHexString:@"#E90F0F"]];
+}
+
+#pragma mark - UIAlertViewDelegate
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (alertView.tag == 40000) {
+        if (buttonIndex == 1) {
+            [self.navigationController popViewControllerAnimated:YES];
+        }
+    }else{
+        if (buttonIndex == 1) {
+            
+            if (_playTime < 10) {
+                _audioPath = nil;
+                [_audioView.showTimeLab setText:@"点击录音"];
+                [_audioView.showTimeLab setTextColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+                [MBProgressHUD showMessag:@"亲,您上传的录音太短了..." toView:self.view];
+            }else{
+                _recodeData = [NSData dataWithContentsOfFile:_audioPath];
+                
+                [_audioView removeFromSuperview];
+                
+                if (_haveImages.count > 1) {
+                    _vidioBtn.top = _startImageCollectionView.frame.origin.y + 50;
+                    _beginBtn.top = _startImageCollectionView.frame.origin.y + 50;
+                    _userNameLab.top = _vidioBtn.top + 4;
+                    _vidioTimeLab.top = _vidioBtn.top + 23;
+                }
+                self.hideVideo = NO;
+            }
+        }
+        else
+        {
+            _audioPath = nil;
+            [_audioView.showTimeLab setText:[NSString stringWithFormat:@"%@",@"点击录音"]];
+            [_audioView.showTimeLab setTextColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+            
+        }
+    }
+    
+}
+
+// 播放语音
+- (void)playRecordWithPath:(NSString *)path
+{
+    [[EMCDDeviceManager sharedInstance] enableProximitySensor];
+    [[EMCDDeviceManager sharedInstance] asyncPlayingWithPath:path completion:^(NSError *error) {
+        if (error)
+        {
+            [MBProgressHUD showError:@"加载音频失败" toView:nil];
+        }
+        else
+        {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [[EMCDDeviceManager sharedInstance] disableProximitySensor];
+                [_beginBtn setImage:[UIImage imageNamed:@"begin"] forState:UIControlStateNormal];
+                _beginBtn.tag = 1;
+                [_timer invalidate];
+                _playTime = _minute * 60 + _second;
+                _vidioTimeLab.text = [NSString stringWithFormat:@"%02d:%02d/%02d:%02d",_minute,_second,_minute,_second];
+            });
+        }
+    }];
+}
+
+- (void)setHideVideo:(BOOL)hideVideo
+{
+    _hideVideo = hideVideo;
+    if (_hideVideo) {
+        _vidioBtn.hidden = YES;
+        _beginBtn.hidden = YES;
+        _userNameLab.hidden = YES;
+        _vidioTimeLab.hidden = YES;
+    }else{
+        _vidioBtn.hidden = NO;
+        _beginBtn.hidden = NO;
+        UIImageView *iconImageView = [[UIImageView alloc]init];
+        [NetWorkingUtil setImage:iconImageView url:[User shareUser].avatar defaultIconName:@"comment_默认"];
+        [_beginBtn setBackgroundImage:iconImageView.image forState:UIControlStateNormal];
+        _userNameLab.hidden = NO;
+        _userNameLab.text = [NSString stringWithFormat:@"来自“%@”的声音",[User shareUser].nickName];
+        _vidioTimeLab.hidden = NO;
+        _vidioTimeLab.text = [NSString stringWithFormat:@"%02d:%02d/%02d:%02d",_minute,_second,_minute,_second];
+    }
+}
+
+//  设置是否录音动画
+- (void)setBeginAnimation:(BOOL)beginAnimation
+{
+    _beginAnimation = beginAnimation;
+    
+    if (_beginAnimation) {
+        //创建一个数组，数组中按顺序添加要播放的图片（图片为静态的图片）
+        NSMutableArray *imgArray = [NSMutableArray array];
+        for (int i = 1; i < 8; i ++) {
+            UIImage *image = [UIImage imageNamed:[NSString stringWithFormat:@"audio%d.png",i]];
+            [imgArray addObject:image];
+        }
+        //把存有UIImage的数组赋给动画图片数组
+        _audioView.audioRecoderImageView.animationImages = imgArray;
+        //设置执行一次完整动画的时长
+        _audioView.audioRecoderImageView.animationDuration = 7*0.15;
+        //动画重复次数 （0为重复播放）
+        _audioView.audioRecoderImageView.animationRepeatCount = 0;
+        //开始播放动画
+        [_audioView.audioRecoderImageView startAnimating];
+    }else{
+        [_audioView.audioRecoderImageView stopAnimating];
+    }
+    
+}
+
+#pragma mark - MWPhotoBrowserDelegate
+- (NSUInteger)numberOfPhotosInPhotoBrowser:(MWPhotoBrowser *)photoBrowser
+{
+    return self.haveImages.count-1;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser photoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo = [MWPhoto photoWithImage:_haveImages[index]];
+    return photo;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser thumbPhotoAtIndex:(NSUInteger)index
+{
+    UIImage *image = _haveImages[index];
+    image.isSelected = YES;
+    MWPhoto *photo = [MWPhoto photoWithImage:_haveImages[index]];
+    return photo;
+}
+
+- (void)photoBrowserDidFinishModalPresentation:(MWPhotoBrowser *)photoBrowser
+{
+    [photoBrowser dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark  UIScrollViewDelegate
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+{
+    [self.view endEditing:YES];
+}
+
+//  键盘return键
+- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text{
+    if ([text isEqualToString:@"\n"]){
+        [textView resignFirstResponder];
+        return NO;
+    }
+    
+    return YES;
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    
+    [textField resignFirstResponder];
+    return YES;
+}
+
+-(int)convertToInt:(NSString*)strtemp {
+    
+    int strlength = 0;
+    char* p = (char*)[strtemp cStringUsingEncoding:NSUnicodeStringEncoding];
+    for (int i=0 ; i<[strtemp lengthOfBytesUsingEncoding:NSUnicodeStringEncoding] ;i++) {
+        if (*p) {
+            p++;
+            strlength++;
+        }
+        else {
+            p++;
+        }
+    }
+    return strlength;
+}
+
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

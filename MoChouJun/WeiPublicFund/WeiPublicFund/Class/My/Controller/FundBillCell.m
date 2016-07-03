@@ -1,0 +1,41 @@
+//
+//  FundBillCell.m
+//  PublicFundraising
+//
+//  Created by zhoupushan on 15/10/14.
+//  Copyright © 2015年 Niuduz. All rights reserved.
+//
+
+#import "FundBillCell.h"
+@interface FundBillCell()
+
+@property (weak, nonatomic) IBOutlet UILabel *dateLab;
+@property (weak, nonatomic) IBOutlet UILabel *timeLabel;
+@property (weak, nonatomic) IBOutlet UIImageView *moneyTypeImageView;
+@property (weak, nonatomic) IBOutlet UILabel *tltleLabel;
+@property (weak, nonatomic) IBOutlet UILabel *moneyLabel;
+
+@end
+@implementation FundBillCell
+
+- (void)setFundDic:(NSDictionary *)fundDic
+{
+    _fundDic = fundDic;
+    _dateLab.text = [_fundDic objectForKey:@"Time"];
+    _timeLabel.text = [_fundDic objectForKey:@"Date"];
+    _tltleLabel.text = [_fundDic objectForKey:@"Content"];
+    if ([[_fundDic objectForKey:@"IsIncome"] integerValue] == 1) {
+        _moneyLabel.text = [NSString stringWithFormat:@"-¥%.2f",[[_fundDic objectForKey:@"Amount"] doubleValue]];
+    }else{
+        _moneyLabel.text = [NSString stringWithFormat:@"+¥%.2f",[[_fundDic objectForKey:@"Amount"] doubleValue]];
+    }
+    
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+@end

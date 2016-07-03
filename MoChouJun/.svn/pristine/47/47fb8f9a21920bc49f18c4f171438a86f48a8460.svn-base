@@ -1,0 +1,546 @@
+//
+//  PSChatGroupDetailViewController.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/17.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "PSChatGroupDetailViewController.h"
+#import "NewFriendDetailProjectCell.h"
+#import "ComplaintViewController.h"
+#import "EMGroup.h"
+#import "PSActionSheet.h"
+#import "GroupNoticeViewController.h"
+#import "User.h"
+#import "ChangeGroupNameViewController.h"
+#import "GroupFriendListViewController.h"
+#import "ChatBuddyDAO.h"
+#import "SendCMDMessageUtil.h"
+#import "PSChat.h"
+#import "ContactSelectionViewController.h"
+#import "PSBuddy.h"
+#import "GroupFriendSelectViewController.h"
+#import "AddGroupNoticeViewController.h"
+
+@interface PSChatGroupDetailViewController ()<IChatManagerDelegate,UIActionSheetDelegate,UINavigationControllerDelegate,UIImagePickerControllerDelegate,ChangeGroupNameViewControllerDelegate,GroupNoticeViewControllerDelegate,EMChooseViewDelegate,AddGroupNoticeViewControllerDelegate>
+
+@property (weak, nonatomic) IBOutlet UILabel *groupNameLabel2;
+@property (weak, nonatomic) IBOutlet UILabel *groupNumberLabel;
+@property (weak, nonatomic) IBOutlet UICollectionView *friendsCollectionView;
+@property (weak, nonatomic) IBOutlet UIButton *greenButton;
+@property (weak, nonatomic) IBOutlet UIButton *redButton;
+@property (weak, nonatomic) IBOutlet UITableView *psChatGroupDetailsTableView;
+@property (strong, nonatomic) IBOutlet UIView *tableHeaderView;
+@property (strong, nonatomic) IBOutlet UIView *tableFooterView;
+@property (weak, nonatomic) IBOutlet UILabel *noticeLab;
+@property (weak, nonatomic) IBOutlet UIView *headerLineView;
+@property (weak, nonatomic) IBOutlet UIButton *allGroupBtn;
+@property (weak, nonatomic) IBOutlet UIView *spaceView;
+@property (weak, nonatomic) IBOutlet UILabel *qunNatureLab;
+
+@property (strong, nonatomic) NSMutableArray *images;
+@property (nonatomic,strong) NSMutableArray *userNameArr;
+@property (nonatomic,strong) NSArray *users;
+@property (strong, nonatomic) EMGroup *chatGroup;
+@property (nonatomic) PSGroupOccupantType occupantType;
+@property (copy, nonatomic) NSString *levelGroup;
+
+@property (assign, nonatomic,setter=isProjectChat:) BOOL proejectChat;
+@end
+
+@implementation PSChatGroupDetailViewController
+- (void)registerNotifications {
+    [self unregisterNotifications];
+    [[EaseMob sharedInstance].chatManager addDelegate:self delegateQueue:nil];
+}
+
+- (void)unregisterNotifications
+{
+    [[EaseMob sharedInstance].chatManager removeDelegate:self];
+}
+
+- (void)dealloc
+{
+    [self unregisterNotifications];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:@"GroupBansChanged" object:nil];
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"群详情";
+    
+    
+    _psChatGroupDetailsTableView.tableFooterView = self.tableFooterView;
+    self.view.backgroundColor = [UIColor clearColor];
+    [self backBarItem];
+    [self setupCollectionView];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(groupBansChanged) name:@"GroupBansChanged" object:nil];
+}
+
+- (void)groupBansChanged
+{
+    NSLog(@"群成员发生了变化了");
+    [self requestGroupDetailWithGroupId:_groupId];
+}
+
+#pragma mark - GroupNoticeViewControllerDelegate
+- (void)changeGroupNotice:(NSString *)groupNotice
+{
+    _noticeLab.text = groupNotice;
+}
+
+#pragma mark - ChangeGroupNameViewControllerDelegate
+- (void)changeGroupName:(NSString *)groupName
+{
+    _groupNameLabel2.text = groupName;
+    [SendCMDMessageUtil sendGroupNameCMDEessage:groupName groupId:_groupId];
+    EMMessage *message = [SendCMDMessageUtil sendGroupNoticeMessageGroupId:_groupId message:[NSString stringWithFormat:@"%@ 已修改群名称为 “%@”",[User shareUser].userName,groupName]];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"insertCallMessage" object:message];
+    PSChat *chat = [ChatBuddyDAO chatBuddyWithUserame:_groupId];
+    chat.showName = groupName;
+    [ChatBuddyDAO updateChatBuddy:chat];
+}
+
+#pragma mark - data
+- (void)fetchGroupInfo
+{
+    __weak typeof(self) weakSelf = self;
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [[EaseMob sharedInstance].chatManager asyncFetchGroupInfo:_chatGroup.groupId completion:^(EMGroup *group, EMError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf hideHud];
+            if (!error) {
+                weakSelf.chatGroup = group;
+                EMConversation *conversation = [[EaseMob sharedInstance].chatManager conversationForChatter:group.groupId conversationType:eConversationTypeGroupChat];
+                if ([group.groupId isEqualToString:conversation.chatter]) {
+                    NSMutableDictionary *ext = [NSMutableDictionary dictionaryWithDictionary:conversation.ext];
+                    [ext setObject:group.groupSubject forKey:@"groupSubject"];
+                    [ext setObject:[NSNumber numberWithBool:group.isPublic] forKey:@"isPublic"];
+                    conversation.ext = ext;
+                }
+                [weakSelf reloadDataSource];
+                [MBProgressHUD dismissHUDForView:self.view];
+            }
+            else
+            {
+                [MBProgressHUD dismissHUDForView:self.view withError:@"请求失败"];
+            }
+        });
+    } onQueue:nil];
+}
+
+- (void)reloadDataSource
+{
+    self.occupantType = PSGroupOccupantTypeMember;
+    NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+    NSString *loginUsername = [loginInfo objectForKey:kSDKUsername];
+    if ([self.chatGroup.owner isEqualToString:loginUsername]) {
+        self.occupantType = PSGroupOccupantTypeOwner;
+    }
+    
+    if (self.occupantType != PSGroupOccupantTypeOwner) {
+        for (NSString *str in self.chatGroup.members) {
+            if ([str isEqualToString:loginUsername]) {
+                self.occupantType = PSGroupOccupantTypeMember;
+                break;
+            }
+        }
+    }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (_occupantType == PSGroupOccupantTypeMember)
+        {
+            // 成员
+            // button 的 action不同
+            [_redButton setTitle:@"退出群组" forState:UIControlStateNormal];
+        }
+        else
+        {
+            [_redButton setTitle:@"解散群组" forState:UIControlStateNormal];
+            // owner
+        }
+    });
+}
+
+- (void)setOccupantType:(PSGroupOccupantType)occupantType
+{
+    _occupantType = occupantType;
+    
+    // 项目详情都需要隐藏！
+    if (_occupantType == PSGroupOccupantTypeOwner && _proejectChat)
+    {
+        _redButton.hidden = YES;
+        return;
+    }
+    
+    if (_occupantType == PSGroupOccupantTypeMember)
+    {
+        // 成员
+        [_redButton setTitle:@"退出群组" forState:UIControlStateNormal];
+    }
+    else
+    {
+        [_redButton setTitle:@"解散群组" forState:UIControlStateNormal];
+    }
+}
+
+- (void)setupCollectionView
+{
+    [self.friendsCollectionView registerNib:[UINib nibWithNibName:@"NewFriendDetailProjectCell" bundle:nil] forCellWithReuseIdentifier:@"NewFriendDetailProjectCell"];
+}
+
+- (void)setGroupId:(NSString *)groupId
+{
+    _groupId = groupId;
+    [self requestGroupDetailWithGroupId:_groupId];
+}
+
+#pragma mark - Request
+- (void)requestGroupDetailWithGroupId:(NSString *)groupId
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"Group/Details" parameters:@{@"GroupId":groupId} result:^(NSDictionary *dic, int status, NSString *msg)
+     {
+         NSLog(@"------%@",dic);
+         if (status == 1)
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             NSDictionary *groupDic = [dic valueForKey:@"group"];
+             _proejectChat = [[groupDic valueForKey:@"CrowdFundId"] integerValue];
+             if (_proejectChat == 0) {
+                 _qunNatureLab.text = @"群聊组";
+             }else{
+                 _qunNatureLab.text = @"项目组";
+             }
+             _groupNameLabel2.text = [groupDic valueForKey:@"GroupName"];
+             _noticeLab.text = [groupDic valueForKey:@"Notice"];
+             
+             NSString *imageUrl = [groupDic valueForKey:@"Avatar"];
+             if (imageUrl)
+             {
+//                 [NetWorkingUtil setImage:_headImageView url:imageUrl defaultIconName:@"home_默认"];
+             }
+
+             self.users = [dic valueForKey:@"groupUsers"];
+             _groupNumberLabel.text = [NSString stringWithFormat:@"全部群成员(%@)",[groupDic valueForKey:@"UserCount"]];
+             _images = [NSMutableArray arrayWithCapacity:8];
+             _userNameArr = [NSMutableArray arrayWithCapacity:8];
+             for (NSDictionary *usetDic in self.users)
+             {
+                 NSString *imagesStr = [usetDic valueForKey:@"Avatar"];
+                 NSString *userNameStr = [usetDic valueForKey:@"UserName"];
+                [_images addObject:imagesStr];
+                 [_userNameArr addObject:userNameStr];
+                 
+             }
+             
+             if (_images.count < 4 && _friendsCollectionView.frame.size.height != 80) {
+                 _tableHeaderView.frame = CGRectMake(0, 0, SCREEN_WIDTH, 150);
+                 _friendsCollectionView.frame = CGRectMake(15, 10, SCREEN_WIDTH - 30, 80);
+                 _headerLineView.top = _headerLineView.origin.y - 70;
+                 _groupNumberLabel.top = _groupNumberLabel.origin.y - 70;
+                 _allGroupBtn.top = _allGroupBtn.origin.y - 70;
+                 _spaceView.top = _spaceView.origin.y - 70;
+                 _psChatGroupDetailsTableView.tableHeaderView = _tableHeaderView;
+             }else{
+                 _psChatGroupDetailsTableView.tableHeaderView = _tableHeaderView;
+             }
+             
+             NSString *userId = [NSString stringWithFormat:@"%@",[groupDic valueForKey:@"UserId"]];
+             User *user = [User shareUser];
+             if ([user.Id longValue] == [userId integerValue])
+             {
+                 self.occupantType = PSGroupOccupantTypeOwner;
+             }
+             else
+             {
+                 self.occupantType = PSGroupOccupantTypeMember;
+             }
+             [_friendsCollectionView reloadData];
+             
+             PSChat *chat = [[PSChat alloc] init];
+             chat.avatar = [groupDic valueForKey:@"Avatar"];
+             chat.name = [groupDic valueForKey:@"GroupName"];
+             chat.value = groupId;
+             if (_proejectChat == 0) {
+                 chat.showType = 2;
+             }else{
+                 chat.showType = 3;
+             }
+             [ChatBuddyDAO updateChatBuddy:chat];
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+     }];
+}
+
+#pragma mark - actionsheet代理
+-(void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    UIImagePickerController *imagePicerController;
+    if (buttonIndex == 1)
+    {
+        if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera])
+        {
+            imagePicerController = [[UIImagePickerController alloc]init];
+            imagePicerController.navigationBar.barTintColor = [UIColor colorWithHexString:@"#f35c56"];
+            imagePicerController.delegate = self;
+            imagePicerController.allowsEditing = YES;
+            imagePicerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+            imagePicerController.showsCameraControls = YES;//takePicture
+            [self presentViewController:imagePicerController animated:YES completion:nil];
+        }
+        else
+        {
+            ULog(@"设备不支持");
+        }
+        
+    }
+    else if (buttonIndex == 0)
+    {
+        // 相册
+        imagePicerController = [[UIImagePickerController alloc]init];
+        imagePicerController.navigationBar.tintColor = [UIColor blackColor];
+        imagePicerController.navigationBar.barTintColor = NaviColor;
+        imagePicerController.delegate = self;
+        imagePicerController.allowsEditing = YES;
+        imagePicerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+        [self presentViewController:imagePicerController animated:YES completion:nil];
+    }
+}
+
+#pragma mark - 选取图片后的回调
+-(void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+{
+    UIImage *image = [info objectForKey:UIImagePickerControllerEditedImage];
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestImageMethodName:@"Group/UploadAvatar" parameters:@{@"GroupId":_groupId} images:@[image] result:^(NSString *avatar, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            NSLog(@"%@",avatar);
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"美图上传成功啦,阿么好开心呀"];
+            [SendCMDMessageUtil sendGroupAvatarCMDEessage:avatar groupId:_groupId];
+            PSChat *chat = [ChatBuddyDAO chatBuddyWithUserame:_groupId];
+            chat.avatar = avatar;
+            [ChatBuddyDAO updateChatBuddy:chat];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
+{
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+//修改照片尺寸
+-(UIImage *)changeImageviewSize:(UIImageView *)Imageview{
+    UIGraphicsBeginImageContext(Imageview.bounds.size);
+    [Imageview.layer renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+#pragma mark - Action
+- (IBAction)loadGroupImage:(UIButton *)sender
+{
+    //这里需要判断是否是群主
+    if (self.occupantType == PSGroupOccupantTypeOwner)
+    {
+        UIActionSheet *sheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"从相册中选择",@"拍一张", nil];
+        [sheet showInView:self.view];
+    }
+}
+
+- (IBAction)groupNoticeAction:(UIButton *)sender
+{
+//    GroupNoticeViewController *vc = [[GroupNoticeViewController alloc]init];    
+//    vc.canEdit = !(_occupantType == PSGroupOccupantTypeMember);;
+//    vc.groupId = _groupId;
+//    vc.delegate = self;
+//    [self.navigationController pushViewController:vc animated:NO];
+    
+    AddGroupNoticeViewController *addGroupNoticeVC = [AddGroupNoticeViewController new];
+    addGroupNoticeVC.groupId = _groupId;
+    addGroupNoticeVC.noticeStr = _noticeLab.text;
+    addGroupNoticeVC.delegate = self;
+    [self.navigationController pushViewController:addGroupNoticeVC animated:YES];
+}
+
+- (IBAction)groupName:(UIButton *)sender
+{
+    //这里需要判断是否是群主
+    if (self.occupantType == PSGroupOccupantTypeOwner)
+    {
+        ChangeGroupNameViewController *vc = [[ChangeGroupNameViewController alloc]init];
+        vc.groupName =  _groupNameLabel2.text;
+        vc.groupId = _groupId;
+        vc.delegate = self;
+        [self.navigationController pushViewController:vc animated:YES];
+    }else{
+        [MBProgressHUD showMessag:@"您不是群主,快去创建属于自己群聊吧" toView:self.view];
+    }
+}
+
+- (IBAction)groupFriendList:(UIButton *)sender
+{
+    // 好友列表
+    GroupFriendListViewController *vc = [[GroupFriendListViewController alloc]init];
+    vc.groupId = _groupId;
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (IBAction)greenAction:(UIButton *)sender
+{
+    // 举报
+    ComplaintViewController *vc = [[ComplaintViewController alloc]init];
+    vc.complaintType = @"0";
+    vc.username = [NSString stringWithFormat:@"%@",_groupId];
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+- (IBAction)redAction:(UIButton *)sender
+{
+    // 退出
+    if (self.occupantType == PSGroupOccupantTypeOwner)
+    {
+        [self dissolveAction];
+    }
+    else
+    {
+        [self exitAction];
+    }
+    
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"Group/Exit" parameters:@{@"GroupId":_groupId} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"操作成功"];
+            [[EaseMob sharedInstance].chatManager removeConversationByChatter:_groupId deleteMessages:YES append2Chat:YES];
+            
+            [self performSelector:@selector(popToViewController) withObject:nil afterDelay:1.5];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+}
+
+- (void)popToViewController
+{
+    NSArray *childViewControllers  = self.navigationController.childViewControllers;
+    NSUInteger destinationIndex = (childViewControllers.count - 3);
+    [self.navigationController popToViewController:childViewControllers[destinationIndex] animated:YES];
+}
+
+#pragma mark - EaseMOb
+//退出群组
+- (void)exitAction
+{
+    [[EaseMob sharedInstance].chatManager asyncLeaveGroup:_chatGroup.groupId completion:^(EMGroup *group, EMGroupLeaveReason reason, EMError *error) {
+    } onQueue:nil];
+}
+
+//解散群组
+- (void)dissolveAction
+{
+    [[EaseMob sharedInstance].chatManager asyncDestroyGroup:_groupId completion:^(EMGroup *group, EMGroupLeaveReason reason, EMError *error)
+    {
+    } onQueue:nil];
+}
+
+//设置群组
+- (void)configureAction {
+    // todo
+    [[[EaseMob sharedInstance] chatManager] asyncIgnoreGroupPushNotification:_chatGroup.groupId
+                                                                    isIgnore:_chatGroup.isPushNotificationEnabled];
+    
+    return;
+}
+
+#pragma mark - UICollectionViewDelegate & UICollectionViewDataSource
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+{
+    return _images.count + 2;
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    NewFriendDetailProjectCell *cell = [_friendsCollectionView dequeueReusableCellWithReuseIdentifier:@"NewFriendDetailProjectCell" forIndexPath:indexPath];
+    if (indexPath.row < _images.count) {
+        [cell setimageUrl:_images[indexPath.row]];
+        [cell setUserName:_userNameArr[indexPath.row]];
+    }else{
+        if (indexPath.row == _images.count) {
+            cell.imageView.image = [UIImage imageNamed:@"add_qunPeople"];
+            cell.userNameLab.hidden = YES;
+        }else{
+            cell.imageView.image = [UIImage imageNamed:@"subtract_qunPeople"];
+            cell.userNameLab.hidden = YES;
+        }
+    }
+    return cell;
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row == _images.count) {
+        ContactSelectionViewController *selectionController = [[ContactSelectionViewController alloc] init];
+        selectionController.delegate = self;
+        [self.navigationController pushViewController:selectionController animated:YES];
+    }else if (indexPath.row == _images.count + 1){
+        if (self.occupantType == PSGroupOccupantTypeOwner)
+        {
+            GroupFriendSelectViewController *vc = [[GroupFriendSelectViewController alloc]init];
+            vc.groupId = _groupId;
+            [self.navigationController pushViewController:vc animated:YES];
+        }else{
+            [MBProgressHUD showMessag:@"您不是群主,快去创建属于自己群聊吧" toView:self.view];
+        }
+    }
+}
+
+//    加人
+#pragma mark - EMChooseViewDelegate
+- (BOOL)viewController:(EMChooseViewController *)viewController didFinishSelectedSources:(NSArray *)selectedSources
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    NSMutableArray *nameListArr = [NSMutableArray array];
+    for (PSBuddy *buddy in selectedSources) {
+        NSString *name = IsStrEmpty(buddy.nickName)?buddy.userName:buddy.nickName;
+        [nameListArr addObject:name];
+    }
+    NSData *data = [NSJSONSerialization dataWithJSONObject:nameListArr options:NSJSONWritingPrettyPrinted error:nil];
+    NSString *nameListStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    [self.httpUtil requestDic4MethodName:@"Group/AddMember" parameters:@{@"GroupId":_groupId,@"NameList":nameListStr} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"添加成功"];
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"GroupBansChanged" object:nil];
+        }else{
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+    return YES;
+}
+
+- (NSArray *)users
+{
+    if (!_users) {
+        _users = [[NSArray alloc]init];
+    }
+    return _users;
+}
+
+@end

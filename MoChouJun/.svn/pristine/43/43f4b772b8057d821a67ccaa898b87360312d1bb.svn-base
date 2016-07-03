@@ -1,0 +1,18 @@
+
+source 'https://github.com/CocoaPods/Specs.git'
+platform :ios, '7.0'
+
+pod 'SDWebImage', '~> 3.7.3'
+pod 'AFNetworking', '~> 2.6.0'
+pod 'MBProgressHUD', '~> 0.9.1'
+pod 'JSONKit', '~> 1.5pre'
+pod 'MJRefresh'
+pod 'IQKeyboardManager'
+pod 'MMPopupView'
+pod 'YYModel'
+pod 'MWPhotoBrowser'
+pod 'APAddressBook'
+pod 'FMDB', '~> 2.6'
+
+
+#pod 'FDFullscreenPopGesture', '1.1'

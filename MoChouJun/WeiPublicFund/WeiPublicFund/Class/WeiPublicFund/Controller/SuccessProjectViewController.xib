@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="9531" systemVersion="14F1021" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="9529"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="SuccessProjectViewController">
+            <connections>
+                <outlet property="addProjectDetailsBtn" destination="WjZ-71-Xna" id="2K5-O2-yBo"/>
+                <outlet property="addReturnBtn" destination="pgM-QS-j2u" id="ryl-uR-sed"/>
+                <outlet property="showLab" destination="mf0-JY-Cr3" id="Zno-Dc-KcJ"/>
+                <outlet property="view" destination="i5M-Pr-FkT" id="sfx-zR-JGt"/>
+                <outletCollection property="threeShareButtons" destination="Q5X-CA-6HG" id="UOC-nR-wBM"/>
+                <outletCollection property="threeShareButtons" destination="1mz-dc-Fx6" id="8Zt-PZ-EBS"/>
+                <outletCollection property="threeShareButtons" destination="mQB-kV-c4S" id="BRS-1e-Cdq"/>
+                <outletCollection property="threeShareButtons" destination="lE0-Zz-4mU" id="4se-lP-QhO"/>
+                <outletCollection property="threeShareButtons" destination="uRp-cj-5jq" id="epx-Uu-N3z"/>
+            </connections>
+        </placeholder>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="i5M-Pr-FkT">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="568"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="projectOk" id="bBH-aa-LaL">
+                    <rect key="frame" x="140" y="33" width="39" height="39"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                </imageView>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="您已成功发布项目,快去分享给小伙伴们吧" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="mf0-JY-Cr3">
+                    <rect key="frame" x="0.0" y="92" width="320" height="21"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                    <fontDescription key="fontDescription" type="system" pointSize="13"/>
+                    <color key="textColor" red="0.29803921568627451" green="0.29803921568627451" blue="0.29803921568627451" alpha="1" colorSpace="calibratedRGB"/>
+                    <nil key="highlightedColor"/>
+                </label>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="分享至:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="O5r-zw-tnz">
+                    <rect key="frame" x="15" y="148" width="59" height="21"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                    <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                    <color key="textColor" red="0.16862745098039217" green="0.16862745098039217" blue="0.16862745098039217" alpha="1" colorSpace="calibratedRGB"/>
+                    <nil key="highlightedColor"/>
+                </label>
+                <view contentMode="scaleToFill" id="NOq-4r-cnY">
+                    <rect key="frame" x="0.0" y="180" width="320" height="209"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxY="YES"/>
+                    <subviews>
+                        <button opaque="NO" tag="4" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="uRp-cj-5jq">
+                            <rect key="frame" x="120" y="109" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="新浪微博" image="新浪微博">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="shareAction:" destination="-1" eventType="touchUpInside" id="V8n-UI-Y1r"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" tag="1" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="1mz-dc-Fx6">
+                            <rect key="frame" x="120" y="11" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="QQ空间" image="qq空间">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="shareAction:" destination="-1" eventType="touchUpInside" id="fKO-XL-Lv6"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="Q5X-CA-6HG">
+                            <rect key="frame" x="22" y="11" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="QQ好友" image="qq好友">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="shareAction:" destination="-1" eventType="touchUpInside" id="ygB-6M-53T"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" tag="2" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="mQB-kV-c4S">
+                            <rect key="frame" x="223" y="11" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="微信好友" image="微信">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="shareAction:" destination="-1" eventType="touchUpInside" id="MRA-Uw-cn3"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" tag="3" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="lE0-Zz-4mU">
+                            <rect key="frame" x="22" y="109" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="朋友圈" image="朋友圈">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="shareAction:" destination="-1" eventType="touchUpInside" id="zKS-aW-I5x"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="pPB-bh-rEW">
+                            <rect key="frame" x="223" y="109" width="80" height="80"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                            <inset key="titleEdgeInsets" minX="-45" minY="63" maxX="8" maxY="0.0"/>
+                            <inset key="imageEdgeInsets" minX="9" minY="0.0" maxX="0.0" maxY="15"/>
+                            <state key="normal" title="复制链接" image="复制链接">
+                                <color key="titleColor" red="0.4039215686" green="0.4039215686" blue="0.4039215686" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="copyLianjieAction:" destination="-1" eventType="touchUpInside" id="q7y-iZ-27h"/>
+                            </connections>
+                        </button>
+                    </subviews>
+                    <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                </view>
+                <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="pgM-QS-j2u">
+                    <rect key="frame" x="77" y="452" width="168" height="36"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
+                    <state key="normal" image="添加回报"/>
+                    <connections>
+                        <action selector="addReturnClick:" destination="-1" eventType="touchUpInside" id="c7O-9g-lFO"/>
+                    </connections>
+                </button>
+                <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="WjZ-71-Xna">
+                    <rect key="frame" x="74" y="504" width="173" height="36"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
+                    <state key="normal" image="添加详情"/>
+                    <connections>
+                        <action selector="addProjectDetailsClick:" destination="-1" eventType="touchUpInside" id="Sfn-d1-bLV"/>
+                    </connections>
+                </button>
+            </subviews>
+            <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+            <point key="canvasLocation" x="271" y="255"/>
+        </view>
+    </objects>
+    <resources>
+        <image name="projectOk" width="39" height="39"/>
+        <image name="qq好友" width="49" height="49"/>
+        <image name="qq空间" width="49" height="49"/>
+        <image name="复制链接" width="49" height="49"/>
+        <image name="微信" width="49" height="49"/>
+        <image name="新浪微博" width="49" height="49"/>
+        <image name="朋友圈" width="49" height="49"/>
+        <image name="添加回报" width="168" height="36"/>
+        <image name="添加详情" width="168" height="36"/>
+    </resources>
+</document>

@@ -1,0 +1,13 @@
+//
+//  FriendDetailProjectCell.h
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/2.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface NewFriendDetailProjectCell : UICollectionViewCell
+- (void)setimageUrl:(NSString *)imageUrl;
+@end

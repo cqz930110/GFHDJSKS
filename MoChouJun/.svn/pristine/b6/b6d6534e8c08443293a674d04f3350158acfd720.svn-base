@@ -1,0 +1,403 @@
+//
+//  WeiCrowdfundingViewController.m
+//  TipCtrl
+//
+//  Created by liuyong on 15/11/27.
+//  Copyright © 2015年 hesong. All rights reserved.
+//
+
+#import "WeiCrowdfundingViewController.h"
+#import "ProjectTableViewCell.h"
+#import "StartProjectViewController.h"
+#import "InitiateProjectViewController.h"
+#import "PSBarButtonItem.h"
+#import "ReflectUtil.h"
+#import "User.h"
+#import "CheckNameViewController.h"
+#import "IphoneBindingViewController.h"
+#import "WeiProjectDetailsViewController.h"
+#import "FriendDetailViewController.h"
+#import "EMSearchBar.h"
+#import "Project.h"
+#import "LoginViewController.h"
+#import "BaseNavigationController.h"
+#import "ProjectDAO.h"
+#import "StartFirstProjectViewController.h"
+
+@interface WeiCrowdfundingViewController ()<UITableViewDataSource,UITableViewDelegate,UISearchBarDelegate,UISearchDisplayDelegate>
+@property (weak, nonatomic) IBOutlet UITableView *weiCrowdfundingTableView;
+@property (strong, nonatomic) EMSearchBar *mySearchBar;
+@property (nonatomic,strong)UISearchDisplayController *mySearchDisplayController;
+@property (nonatomic,assign)int pageIndex;
+@property (nonatomic,strong)NSMutableArray *crowdFundingsArr;
+@property (nonatomic,assign)NSInteger crowedCount;
+@property (nonatomic,strong)NSMutableArray *searchCrowdFundArr;
+
+@property (nonatomic,assign)NSInteger startProjectCount;
+@end
+
+@implementation WeiCrowdfundingViewController
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    [self setTableViewInfo];
+    _crowedCount = 0;
+    _pageIndex = 0;
+    _startProjectCount = -1;
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(headerRefreshloadData) name:@"UpdateWeiProject" object:nil];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    [self setNaviInfo];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    self.navigationController.navigationBarHidden = NO;
+    if (!_crowdFundingsArr)
+    {
+        NSArray *projects = [ProjectDAO projectsAllWeiPublicFund];
+        _crowdFundingsArr = [NSMutableArray arrayWithArray:projects];
+        if (_crowdFundingsArr.count)
+        {
+            [_weiCrowdfundingTableView reloadData];
+        }
+        [self getWeiCrowdfundingDataInfo];
+    }
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Setter
+- (NSMutableArray *)crowdFundingsArr
+{
+    if (!_crowdFundingsArr)
+    {
+        _crowdFundingsArr = [NSMutableArray array];
+    }
+    return _crowdFundingsArr;
+}
+
+- (NSMutableArray *)searchCrowdFundArr
+{
+    if (!_searchCrowdFundArr)
+    {
+        _searchCrowdFundArr = [NSMutableArray array];
+    }
+    return _searchCrowdFundArr;
+}
+
+- (UISearchBar *)mySearchBar
+{
+    if (!_mySearchBar) {
+        _mySearchBar = [[EMSearchBar alloc] initWithFrame:CGRectMake(0, 0, SCREEN_WIDTH, 44)];
+        _mySearchBar.delegate = self;
+        _mySearchBar.placeholder = @"搜索";
+        _mySearchBar.backgroundColor = BlackF6F6F6;
+        _mySearchBar.tintColor = [UIColor blackColor];
+    }
+    return _mySearchBar;
+}
+
+- (void)setTableViewInfo
+{
+    //加入列表的header里面
+    _weiCrowdfundingTableView.tableHeaderView = self.mySearchBar;
+    
+    [self setupRefreshWithTableView:_weiCrowdfundingTableView];
+    
+    _mySearchDisplayController = [[UISearchDisplayController alloc] initWithSearchBar:_mySearchBar contentsController:self];
+    _mySearchDisplayController.delegate = self;
+    _mySearchDisplayController.searchResultsDataSource = self;
+    _mySearchDisplayController.searchResultsDelegate = self;
+    _mySearchDisplayController.searchResultsTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    [_mySearchDisplayController.searchResultsTableView registerNib:[UINib nibWithNibName:@"ProjectTableViewCell" bundle:nil]forCellReuseIdentifier:@"ProjectTableViewCell"];
+    [_weiCrowdfundingTableView registerNib:[UINib nibWithNibName:@"ProjectTableViewCell" bundle:nil] forCellReuseIdentifier:@"ProjectTableViewCell"];
+}
+
+- (void)setNaviInfo
+{
+    self.tabBarController.navigationItem.leftBarButtonItem = nil;
+    
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    button.frame = CGRectMake(0, 0, 44+40, 44);
+    [button setImage:[UIImage imageNamed:@"addProject"] forState:UIControlStateNormal];
+    [button setTitle:@"发起" forState:UIControlStateNormal];
+    [button setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+    [button addTarget:self action:@selector(startProjectClick) forControlEvents:UIControlEventTouchUpInside];
+    button.titleLabel.font = [UIFont systemFontOfSize:15];
+    button.imageEdgeInsets = UIEdgeInsetsMake(0, 64, 0, 0);
+    button.titleEdgeInsets = UIEdgeInsetsMake(1, 0, 0, 13);
+    self.tabBarController.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]initWithCustomView:button];
+}
+
+#pragma mark - Actions
+- (void)startProjectClick
+{
+    User *user = [User shareUser];
+    if (user == nil || [user.Id intValue] == 0) {
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"登录就能和阿么一起玩耍啦" delegate:self cancelButtonTitle:@"再等等" otherButtonTitles:@"马上去", nil];
+        alert.tag = 30000;
+        [alert show];
+    }else{
+        [MBProgressHUD showStatus:nil toView:self.view];
+        [self.httpUtil requestDic4MethodName:@"Personal/Setting" parameters:nil result:^(NSDictionary *dic, int status, NSString *msg) {
+            if (status == 1 || status == 2) {
+                [MBProgressHUD dismissHUDForView:self.view];
+                if (IsStrEmpty([dic objectForKey:@"IdNumber"]) && IsStrEmpty([dic objectForKey:@"Mobile"])) {
+                    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"需要实名认证，且绑定手机号码" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"去认证", nil];
+                    alert.tag = 40000;
+                    [alert show];
+                }else if (IsStrEmpty([dic objectForKey:@"IdNumber"]))
+                {
+                    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"需要实名认证" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"去认证", nil];
+                    alert.tag = 20000;
+                    [alert show];
+                }else if (IsStrEmpty([dic objectForKey:@"Mobile"])){
+                    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"需要绑定手机号码" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"去绑定", nil];
+                    alert.tag = 10000;
+                    [alert show];
+                }else{
+                    if (_startProjectCount == 2)
+                    {
+                        StartFirstProjectViewController *startFirstVC = [StartFirstProjectViewController new];
+                        [self.navigationController pushViewController:startFirstVC animated:YES];
+                    }
+                    else if(_startProjectCount == 1)
+                    {
+                        [MBProgressHUD showMessag:@"你有项目在筹资中，等成功后再来哦" toView:self.view];
+                        return;
+                    }
+                    else if(_startProjectCount == 0)
+                    {
+                        [MBProgressHUD showMessag:@"您已被加入黑名单，不能发布项目" toView:self.view];
+                        return;
+                    }
+                    else if (_startProjectCount == 3)
+                    {
+                        [MBProgressHUD showMessag:@"您未绑定手机 ，不能发布项目" toView:self.view];
+                        return;
+                    }
+                }
+            }else{
+                [MBProgressHUD dismissHUDForView:self.view];
+                [MBProgressHUD dismissHUDForView:self.view withError:msg];
+                return ;
+            }
+        }];
+    }
+    
+}
+
+#pragma mark alertViewDelegate
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (alertView.tag == 10000) {
+        if (buttonIndex == 1) {
+            IphoneBindingViewController *iphoneBindingVC = [[IphoneBindingViewController alloc] init];
+            [self.navigationController pushViewController:iphoneBindingVC animated:YES];
+        }
+    }else if (alertView.tag == 20000 || alertView.tag == 40000){
+        if (buttonIndex == 1) {
+            CheckNameViewController *checkNameVC = [[CheckNameViewController alloc] init];
+            [self.navigationController pushViewController:checkNameVC animated:YES];
+        }
+    }else if (alertView.tag == 30000){
+        if (buttonIndex == 1) {
+            LoginViewController * login = [[LoginViewController alloc] init];
+            BaseNavigationController *navi = [[BaseNavigationController alloc] initWithRootViewController:login];
+            [self presentViewController:navi animated:YES completion:nil];
+        }
+    }
+}
+
+#pragma mark - Request
+- (void)getWeiCrowdfundingDataInfo
+{
+    [self.httpUtil requestDic4MethodName:@"CrowdFund/Get" parameters:@{@"PageIndex":@(_pageIndex + 1),@"PageSize":@(10)} result:^(NSDictionary *dic, int status, NSString *msg)
+     {
+        [_weiCrowdfundingTableView.mj_header endRefreshing];
+        [_weiCrowdfundingTableView.mj_footer endRefreshing];
+        if (status == 1 || status == 2)
+        {
+            _pageIndex ++;
+            
+            if (_pageIndex == 1) {
+                [self.crowdFundingsArr removeAllObjects];
+                [_weiCrowdfundingTableView.mj_footer resetNoMoreData];
+            }
+            _startProjectCount = [[dic objectForKey:@"IsAbleCreateCF"] integerValue];
+            NSDictionary *dataDic = [dic valueForKey:@"CFList"];
+            
+            NSArray *array = [ReflectUtil reflectDataWithClassName:@"Project" otherObject:[dataDic valueForKey:@"DataSet"]
+                                                            isList:YES];
+            if ([[dataDic valueForKey:@"PageCount"] integerValue] == [[dataDic valueForKey:@"PageIndex"] integerValue])
+            {
+                [_weiCrowdfundingTableView.mj_footer endRefreshingWithNoMoreData];
+            }
+            
+            [self.crowdFundingsArr addObjectsFromArray:array];
+            [_weiCrowdfundingTableView reloadData];
+            if (_pageIndex <=2)
+            {
+                [ProjectDAO addWeiPublicFundProejcts:array];
+            }
+        }
+        else
+        {
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (void) searchBarCancelButtonClicked:(UISearchBar *)searchBar
+{
+    [_searchCrowdFundArr removeAllObjects];
+}
+
+- (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar
+{
+    [searchBar resignFirstResponder];
+}
+
+- (BOOL)searchDisplayController:(UISearchDisplayController *)controller shouldReloadTableForSearchString:(NSString *)searchString
+{
+    [self filterContentForSearchText:_mySearchBar.text scope:[_mySearchBar scopeButtonTitles][_mySearchBar.selectedScopeButtonIndex]];
+    
+    for(UIView *subview in controller.searchResultsTableView.subviews) {
+        
+        if([subview isKindOfClass:[UILabel class]])
+        {
+            [(UILabel*)subview setText:@"陛下，您要东西阿么费了九牛二虎之力，奏是没找到"];
+        }
+        
+    }
+    
+    return YES;
+}
+
+-(void)filterContentForSearchText:(NSString*)searchText scope:(NSString*)scope
+{
+    [self.httpUtil requestDic4MethodName:@"CrowdFund/Get" parameters:@{@"PageIndex":@(1),@"PageSize":@(100),@"Name":searchText} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            NSLog(@"----%@",dic);
+            NSArray *dataSource = [ReflectUtil reflectDataWithClassName:@"Project" otherObject:[[dic valueForKey:@"CFList"] valueForKey:@"DataSet"] isList:YES];
+            [self.searchCrowdFundArr addObjectsFromArray:dataSource];
+            
+            [_mySearchDisplayController.searchResultsTableView reloadData];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    if ([tableView isEqual:_mySearchDisplayController.searchResultsTableView]) {
+        return _searchCrowdFundArr.count;
+    }
+    return _crowdFundingsArr.count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    if (section == 0) {
+        return 0;
+    }
+    return 15;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 200;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"ProjectTableViewCell";
+    ProjectTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[ProjectTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.delegate = self;
+    if ([tableView isEqual: _mySearchDisplayController.searchResultsTableView]) {
+        cell.project = _searchCrowdFundArr[indexPath.section];
+        return cell;
+    }else{
+        cell.project = _crowdFundingsArr[indexPath.section];
+        cell.userIconBtn.tag = indexPath.section;
+    }
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    Project *project;
+    if ([tableView isEqual: _mySearchDisplayController.searchResultsTableView]) {
+        project = _searchCrowdFundArr[indexPath.section];
+        [_mySearchDisplayController setActive:NO animated:YES];
+        [_searchCrowdFundArr removeAllObjects];
+        [_mySearchBar resignFirstResponder];
+    }
+    else
+    {
+        project = _crowdFundingsArr[indexPath.section];
+    }
+
+    WeiProjectDetailsViewController *weiProjectDetailsVC = [[WeiProjectDetailsViewController alloc] init];
+    weiProjectDetailsVC.projectId = project.Id;
+    weiProjectDetailsVC.showType = DetailShowTypeReal;
+    [self.navigationController pushViewController:weiProjectDetailsVC animated:NO];
+}
+
+- (void)headerRefreshloadData
+{
+    _pageIndex = 0;
+    [self getWeiCrowdfundingDataInfo];
+    
+}
+
+- (void)footerRefreshloadData
+{
+    if (_weiCrowdfundingTableView.mj_footer.state != MJRefreshStateNoMoreData)
+    {
+        [self getWeiCrowdfundingDataInfo];
+    }
+}
+
+- (void)projectTableViewCell:(ProjectTableViewCell *)cell supportProject:(id)project
+{
+    if ([User isLogin])
+    {
+        FriendDetailViewController *friendDetailsVC = [[FriendDetailViewController alloc] init];
+        Project *projects = _crowdFundingsArr[cell.userIconBtn.tag];
+        friendDetailsVC.username = projects.userName;
+        [self.navigationController pushViewController:friendDetailsVC animated:YES];
+    }else{
+        LoginViewController * login = [[LoginViewController alloc] init];
+        BaseNavigationController *navi = [[BaseNavigationController alloc] initWithRootViewController:login];
+        [self presentViewController:navi animated:YES completion:nil];
+    }
+    
+}
+
+@end

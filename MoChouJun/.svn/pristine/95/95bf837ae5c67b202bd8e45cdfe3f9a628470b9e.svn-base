@@ -1,0 +1,225 @@
+//
+//  PageTableController.m
+//  ScrollViewAndTableView
+//
+//  Created by fantasy on 16/5/14.
+//  Copyright © 2016年 fantasy. All rights reserved.
+//
+
+#import "PageTableController.h"
+
+#import "Common.h"
+#import "ProjectTableViewCell.h"
+#import "RecommendHomeTableViewCell.h"
+#import "NetWorkingUtil.h"
+#import "Project.h"
+#import "ReflectUtil.h"
+#import "User.h"
+#import "LoginViewController.h"
+#import "BaseNavigationController.h"
+#import "FriendDetailViewController.h"
+
+@interface PageTableController ()
+
+@property (strong, nonatomic) NSArray * titleArray;
+@property (nonatomic,strong)NSMutableArray *projectMutableArr;
+@property (nonatomic,assign)int index;
+@end
+
+@implementation PageTableController
+
+- (instancetype)initWithStyle:(UITableViewStyle)style{
+  
+  if (self = [super initWithStyle:UITableViewStyleGrouped]) {
+     self.automaticallyAdjustsScrollViewInsets = NO;
+      
+      [self.tableView registerNib:[UINib nibWithNibName:@"RecommendHomeTableViewCell" bundle:nil] forCellReuseIdentifier:@"RecommendHomeTableViewCell"];
+      [self.tableView registerNib:[UINib nibWithNibName:@"ProjectTableViewCell" bundle:nil] forCellReuseIdentifier:@"ProjectTableViewCell"];
+      
+      
+  }
+  return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    [self getTitleDate];
+
+}
+
+- (void)getTitleDate
+{
+    [[NetWorkingUtil netWorkingUtil] requestDic4MethodName:@"Home/List" parameters:@{@"PageIndex":@(1),@"PageSize":@(10),@"TagId":@(1)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if ( status == 1 || status == 2) {
+            self.projectMutableArr = [ReflectUtil reflectDataWithClassName:@"Project" otherObject:[[dic valueForKey:@"CrowdFundList"] valueForKey:@"DataSet"] isList:YES];
+            [self.tableView reloadData];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return _projectMutableArr.count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    return 0.01;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 15;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (self.numOfController == 1) {
+        return 208;
+    }
+    return 170;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    if (self.numOfController == 1) {
+        static NSString *cellID = @"RecommendHomeTableViewCell";
+        RecommendHomeTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+        if (cell == nil) {
+            cell = [[RecommendHomeTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+        }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.project = _projectMutableArr[indexPath.section];
+        cell.imageView.contentMode = UIViewContentModeScaleAspectFit;
+        cell.delegate = self;
+        cell.userIconBtn.tag = indexPath.section;
+        return cell;
+    }else{
+        static NSString *cellID = @"ProjectTableViewCell";
+        ProjectTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+        if (cell == nil) {
+            cell = [[ProjectTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+        }
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.project = _projectMutableArr[indexPath.section];
+        cell.delegate = self;
+        cell.userIconBtn.tag = indexPath.section;
+        return cell;
+    }
+    return nil;
+  
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (self.numOfController == 1) {
+        
+    }else{
+        
+    }
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView{
+  
+  if (self.tableViewDidScroll) {
+    self.tableViewDidScroll(scrollView.contentOffset.y);
+    
+  }
+}
+
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    if (self.tableViewDidScroll) {
+        self.tableViewWillBeginDragging(scrollView.contentOffset.y);
+        
+    }
+}
+
+- (void)scrollViewWillBeginDecelerating:(UIScrollView *)scrollView {
+    if (self.tableViewDidScroll) {
+        self.tableViewWillBeginDecelerating(scrollView.contentOffset.y);
+        
+    }
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
+    if (self.tableViewDidScroll) {
+        self.tableViewDidEndDragging(scrollView.contentOffset.y);
+        
+    }
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    if (self.tableViewDidScroll) {
+        self.tableViewDidEndDecelerating(scrollView.contentOffset.y);
+        
+    }
+}
+
+- (NSMutableArray *)projectMutableArr
+{
+    if (!_projectMutableArr) {
+        _projectMutableArr = [NSMutableArray array];
+    }
+    return _projectMutableArr;
+}
+
+- (void)updateTableViewIndex:(int)index
+{
+    _index = index + 1;
+    [self getUpDate];
+}
+
+- (void)getUpDate
+{
+//    [MBProgressHUD showStatus:nil toView:self.tableView];
+    [[NetWorkingUtil netWorkingUtil] requestDic4MethodName:@"Home/List" parameters:@{@"PageIndex":@(1),@"PageSize":@(10),@"TagId":@(_index)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if ( status == 1 || status == 2) {
+//            [MBProgressHUD dismissHUDForView:self.tableView];
+            [_projectMutableArr removeAllObjects];
+            self.projectMutableArr = [ReflectUtil reflectDataWithClassName:@"Project" otherObject:[[dic valueForKey:@"CrowdFundList"] valueForKey:@"DataSet"] isList:YES];
+            [self.tableView reloadData];
+        }else{
+//            [MBProgressHUD dismissHUDForView:self.tableView];
+            [MBProgressHUD showError:msg toView:self.tableView];
+        }
+    }];
+}
+
+- (void)projectTableViewCell:(ProjectTableViewCell *)cell supportProject:(id)project
+{
+    if ([User isLogin])
+    {
+        FriendDetailViewController *friendDetailsVC = [[FriendDetailViewController alloc] init];
+        Project *projects = _projectMutableArr[cell.userIconBtn.tag];
+        friendDetailsVC.username = projects.userName;
+        [self.navigationController pushViewController:friendDetailsVC animated:YES];
+    }else{
+        LoginViewController * login = [[LoginViewController alloc] init];
+        BaseNavigationController *navi = [[BaseNavigationController alloc] initWithRootViewController:login];
+        [self presentViewController:navi animated:YES completion:nil];
+    }
+}
+
+- (void)recommendHomeTableViewCell:(RecommendHomeTableViewCell *)cell supportProject:(id)project
+{
+    if ([User isLogin])
+    {
+        FriendDetailViewController *friendDetailsVC = [[FriendDetailViewController alloc] init];
+        Project *projects = _projectMutableArr[cell.userIconBtn.tag];
+        friendDetailsVC.username = projects.userName;
+        [self.navigationController pushViewController:friendDetailsVC animated:YES];
+    }else{
+        LoginViewController * login = [[LoginViewController alloc] init];
+        BaseNavigationController *navi = [[BaseNavigationController alloc] initWithRootViewController:login];
+        [self presentViewController:navi animated:YES completion:nil];
+    }
+}
+
+@end

@@ -1,0 +1,45 @@
+//
+//  MyStartGoReturnTableViewCell.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/22.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "MyStartGoReturnTableViewCell.h"
+
+@implementation MyStartGoReturnTableViewCell
+
+- (void)awakeFromNib {
+    // Initialization code
+}
+
+- (void)setMyStartGoReturnDic:(NSDictionary *)myStartGoReturnDic
+{
+    _myStartGoReturnDic = myStartGoReturnDic;
+    
+    _myStartNickNameLab.text = [NSString stringWithFormat:@"收件人:%@",[_myStartGoReturnDic objectForKey:@"NickName"]];
+    _myStartDateLab.text = [_myStartGoReturnDic objectForKey:@"CreateDate"];
+    _myStartReciveLab.text = [NSString stringWithFormat:@"收件人:%@",[_myStartGoReturnDic objectForKey:@"RecvName"]];
+    _myStartNumberLab.text = [NSString stringWithFormat:@"数量:%@件",[_myStartGoReturnDic objectForKey:@"Count"]];
+    _myStartPhoneLab.text = [NSString stringWithFormat:@"电话:%@",[_myStartGoReturnDic objectForKey:@"Mobile"]];
+    _myStartAddressLab.text = [_myStartGoReturnDic objectForKey:@"AddressInfo"];
+    
+    if ([[_myStartGoReturnDic objectForKey:@"StautsId"] integerValue] == 1) {
+        _myStartTypeStateLab.text = [_myStartGoReturnDic objectForKey:@"ShowStauts"];
+        _myStartGoReturnBtn.hidden = NO;
+    }else{
+        _myStartTypeStateLabel.text = [NSString stringWithFormat:@"%@",[_myStartGoReturnDic objectForKey:@"ShowStauts"]];
+        _myStartExpressLab.text = [NSString stringWithFormat:@"%@ %@",[_myStartGoReturnDic objectForKey:@"ExpressName"],[_myStartGoReturnDic objectForKey:@"ExpressNo"]];
+        _myStartGoReturnBtn.hidden = YES;
+    }
+    
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+@end

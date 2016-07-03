@@ -1,0 +1,24 @@
+//
+//  TabBarController.h
+//  PublicFundraising
+//
+//  Created by Apple on 15/10/9.
+//  Copyright © 2015年 Niuduz. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface TabBarController : UITabBarController<UITabBarControllerDelegate, UITabBarDelegate>
+{
+    EMConnectionState _connectionState;
+}
+
+- (void)jumpToChatList;
+
+- (void)setupUntreatedApplyCount;
+- (void)setupUnreadMessageCount;
+
+- (void)networkChanged:(EMConnectionState)connectionState;
+
+- (void)didReceiveLocalNotification:(UILocalNotification *)notification;
+@end

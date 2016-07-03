@@ -1,0 +1,196 @@
+//
+//  MyInvestProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/8.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "MyInvestProjectViewController.h"
+#import "MyInvestProjectTableViewCell.h"
+#import "MyInvestDetailsViewController.h"
+#import "SupportedProject.h"
+#import "FriendDetailViewController.h"
+
+@interface MyInvestProjectViewController ()<UITableViewDelegate,UITableViewDataSource,MyInvestDetailsViewControllerDelegate>
+{
+    int _pageIndex;
+    int _refreshNum;
+}
+
+@property (weak, nonatomic) IBOutlet UITableView *myInvestTableView;
+@property (strong, nonatomic) NSMutableArray *myInvestList;
+@property (assign, nonatomic) BOOL isRefreshEnd;
+@end
+
+@implementation MyInvestProjectViewController
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"我的投资";
+    [self setupAllProperty];
+    [self backBarItem];
+
+    [self setTableViewInfo];
+
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self requestSupportPeopleList];
+}
+
+#pragma mark - Private
+- (void)setupAllProperty
+{
+    _refreshNum = 10;
+    _pageIndex = 1;
+    _isRefreshEnd = NO;
+}
+
+- (void)setTableViewInfo
+{
+    [_myInvestTableView registerNib:[UINib nibWithNibName:@"MyInvestProjectTableViewCell" bundle:nil] forCellReuseIdentifier:@"MyInvestProjectTableViewCell"];
+    _myInvestTableView.tableFooterView = [UIView new];
+    [self setupRefreshWithTableView:_myInvestTableView];
+}
+
+#pragma mark Request
+- (void)requestSupportPeopleList
+{
+    [self.httpUtil requestArr4MethodName:@"Support/UserSupportList" parameters:@{@"PageSize":@(_refreshNum),@"PageIndex":@(_pageIndex)} result:^(NSArray *arr, int status, NSString *msg)
+     {
+         [_myInvestTableView.mj_footer endRefreshing];
+         [_myInvestTableView.mj_header endRefreshing];
+         if (status == 1 || status == 2)
+         {
+             if (_pageIndex == 1)
+             {
+                 [_myInvestList removeAllObjects];
+             }
+             self.isRefreshEnd = _refreshNum > arr.count;
+             [MBProgressHUD dismissHUDForView:self.view];
+             [self.myInvestList addObjectsFromArray:arr];
+             [_myInvestTableView reloadData];
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+
+         if (_myInvestList.count == 0)
+         {
+             self.hideNoMsg = NO;
+         }
+         else
+         {
+             self.hideNoMsg = YES;
+         }
+     } convertClassName:@"SupportedProject" key:@"DataSet"];
+}
+
+#pragma mark - Refresh
+- (void)footerRefreshloadData
+{
+    _pageIndex++;
+    if (_myInvestTableView.mj_footer.state != MJRefreshStateNoMoreData)
+    {
+        [self requestSupportPeopleList];
+    }
+}
+
+- (void)headerRefreshloadData
+{
+    _pageIndex = 1;
+    [self requestSupportPeopleList];
+}
+
+#pragma mark - Setter
+- (NSMutableArray *)myInvestList
+{
+    if (!_myInvestList)
+    {
+        _myInvestList = [NSMutableArray array];
+    }
+    return _myInvestList;
+}
+
+- (void)setIsRefreshEnd:(BOOL)isRefreshEnd
+{
+    _isRefreshEnd = isRefreshEnd;
+    
+    if (_isRefreshEnd)
+    {
+        [_myInvestTableView.mj_footer endRefreshingWithNoMoreData];
+    }
+    else
+    {
+        [_myInvestTableView.mj_footer resetNoMoreData];
+    }
+}
+
+#pragma mark - MyInvestDetailsViewControllerDelegate
+- (void)myInvestDetailsViewControllerDelegate:(SupportedProject *)supportProject
+{
+    NSIndexPath *indexPath = [NSIndexPath indexPathForRow:0 inSection:[_myInvestList indexOfObject:supportProject]];
+    [_myInvestTableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
+}
+
+#pragma mark - UITableViewDelegate & UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+   return _myInvestList.count;;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    if (section == 0) {
+        return 0.1;
+    }
+    return 14;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 98;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"MyInvestProjectTableViewCell";
+    MyInvestProjectTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[MyInvestProjectTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    [cell.myIconBtn addTarget:self action:@selector(myIconBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    cell.myIconBtn.tag = indexPath.section;
+    SupportedProject *supporyedProject = _myInvestList[indexPath.section];
+    cell.supporyedProject = supporyedProject;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    MyInvestDetailsViewController *myInvestDetaiVC = [[MyInvestDetailsViewController alloc] init];
+    myInvestDetaiVC.delegate = self;
+    myInvestDetaiVC.supportProject = _myInvestList[indexPath.section];
+    [self.navigationController pushViewController:myInvestDetaiVC animated:YES];
+}
+
+#pragma mark - Actions
+- (void)myIconBtnClick:(UIButton *)sender
+{
+    FriendDetailViewController *friendDetailsVC = [[FriendDetailViewController alloc]init];
+    SupportedProject *projects = _myInvestList[sender.tag];
+    friendDetailsVC.username = projects.userName;
+    [self.navigationController pushViewController:friendDetailsVC animated:YES];
+}
+@end

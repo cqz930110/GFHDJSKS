@@ -1,0 +1,119 @@
+//
+//  IphoneBindingViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/16.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "IphoneBindingViewController.h"
+
+@interface IphoneBindingViewController ()
+{
+    int timerSecond;
+}
+@property (strong, nonatomic) NSTimer *deadTimer;
+@property (weak, nonatomic) IBOutlet UITextField *iphoneNumberTextField;
+@property (weak, nonatomic) IBOutlet UITextField *codeNumberTextField;
+@property (weak, nonatomic) IBOutlet UITextField *userNameTextField;
+@property (weak, nonatomic) IBOutlet UITextField *setPsdTextField;
+@property (weak, nonatomic) IBOutlet UITextField *commitTextField;
+@property (weak, nonatomic) IBOutlet UIButton *checkBtn;
+@property (weak, nonatomic) IBOutlet UIButton *commitBtn;
+
+@end
+
+@implementation IphoneBindingViewController
+
+-(void)flashBtnStatus{
+    timerSecond --;
+    if (timerSecond == 0) {
+        _checkBtn.backgroundColor = [UIColor colorWithHexString:@"#B37DD4"];
+        [_checkBtn setTitle:@"重新获取" forState:UIControlStateNormal];
+        [_checkBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        _checkBtn.userInteractionEnabled = YES;
+        [self stopTimer];
+    }else{
+        
+        [_checkBtn setTitle:[NSString stringWithFormat:@"获取中(%d)",timerSecond] forState:UIControlStateNormal];
+    }
+}
+
+-(void)startTimer{
+    if (!self.deadTimer) {
+        timerSecond = 60;
+        _checkBtn.backgroundColor = [UIColor colorWithHexString:@"#f0f0f0"];
+        [_checkBtn setTitleColor:[UIColor colorWithHexString:@"#bfbfbf"] forState:UIControlStateNormal];
+        [_checkBtn setTitle:[NSString stringWithFormat:@"获取中(%d)",timerSecond] forState:UIControlStateNormal];
+        _checkBtn.userInteractionEnabled = NO;
+        self.deadTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(flashBtnStatus) userInfo:nil repeats:YES];
+    }
+}
+
+-(void)stopTimer{
+    [self.deadTimer invalidate];
+    self.deadTimer = nil;
+}
+
+-(void)dealloc{
+    [self stopTimer];
+}
+
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self backBarItem];
+    self.title = @"手机绑定";
+    _commitBtn.userInteractionEnabled = NO;
+    _commitBtn.layer.cornerRadius = 5.0;
+    _checkBtn.layer.cornerRadius = 5.0f;
+    
+    [_iphoneNumberTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+    [_codeNumberTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+    [_userNameTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+}
+
+- (void)textFieldChange:(UITextField *)textField
+{
+    if (IsStrEmpty(_iphoneNumberTextField.text) || IsStrEmpty(_codeNumberTextField.text)) {
+        _commitBtn.userInteractionEnabled = NO;
+        _commitBtn.backgroundColor = [UIColor colorWithHexString:@"#DDDDDD"];
+    }else{
+        _commitBtn.userInteractionEnabled = YES;
+        _commitBtn.backgroundColor = [UIColor colorWithHexString:@"#B37DD4"];
+    }
+}
+
+- (IBAction)checkBtnClick:(id)sender {
+    [self.httpUtil requestDic4MethodName:@"Auth/SendMobCode" parameters:@{@"Mobile":_iphoneNumberTextField.text,@"TypeId":@(4)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [self startTimer];
+            _checkBtn.userInteractionEnabled = NO;
+            [MBProgressHUD showSuccess:msg toView:self.view];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+
+    }];
+}
+
+- (IBAction)commitBtnClick:(id)sender {
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"Personal/MobileBind" parameters:@{@"Mobile":_iphoneNumberTextField.text,@"Code":_codeNumberTextField.text,@"TypeId":@(4)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"缤果"];
+            [self performSelector:@selector(delayMethod) withObject:nil afterDelay:1.5f];
+        }
+        else
+        {
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+}
+
+- (void)delayMethod{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+@end

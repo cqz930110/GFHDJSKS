@@ -1,0 +1,24 @@
+//
+//  StartProjectTableViewCell.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/8.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "StartProjectTableViewCell.h"
+#import "MyStartReturnObj.h"
+
+@implementation StartProjectTableViewCell
+
+- (void)setMyStartReturnObj:(MyStartReturnObj *)myStartReturnObj
+{
+    _myStartReturnObj = myStartReturnObj;
+    _startProjectTimeLab.text = _myStartReturnObj.createDate;
+    _startProjectNameLab.text = _myStartReturnObj.name;
+    _startProjectAmountLab.text = [NSString stringWithFormat:@"已筹金额:¥%.2f",_myStartReturnObj.raisedAmount];
+    _startProjectMoneyLab.text = [NSString stringWithFormat:@"目标金额:¥%.2f",_myStartReturnObj.targetAmount];
+    _startProjectStateLab.text = _myStartReturnObj.showStatus;
+}
+
+@end

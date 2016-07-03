@@ -1,0 +1,47 @@
+//
+//  StartProjectTableViewCell.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/8.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "StartProjectTableViewCell.h"
+#import "MyStartReturnObj.h"
+
+@implementation StartProjectTableViewCell
+
+- (void)setMyStartReturnObj:(MyStartReturnObj *)myStartReturnObj
+{
+    _myStartReturnObj = myStartReturnObj;
+    _startProjectTimeLab.text = _myStartReturnObj.createDate;
+    _startProjectNameLab.text = _myStartReturnObj.name;
+    _startProjectAmountLab.text = [NSString stringWithFormat:@"已筹:¥%@ 目标:¥%@",_myStartReturnObj.raisedAmount,_myStartReturnObj.targetAmount];
+    _startProjectMoneyLab.text = [NSString stringWithFormat:@"%d人支持 %@",_myStartReturnObj.supportedCount,_myStartReturnObj.remainTime];
+    _startProjectStateLab.text = _myStartReturnObj.showStatus;
+    _startProjectContentLab.text = _myStartReturnObj.content;
+    
+    if (_myStartReturnObj.statusId == 2) {
+        _myStartReturnBtn.hidden = NO;
+    }else{
+        _myStartReturnBtn.hidden = YES;
+    }
+    
+    if (_myStartReturnObj.statusId == 0) {
+        [_revokeBtn setTitleColor:[UIColor colorWithHexString:@"#181818"] forState:UIControlStateNormal];
+        [_revokeBtn setImage:[UIImage imageNamed:@"myStartBended"] forState:UIControlStateNormal];
+        [_editProjectBtn setTitleColor:[UIColor colorWithHexString:@"#181818"] forState:UIControlStateNormal];
+        [_editProjectBtn setImage:[UIImage imageNamed:@"myStartPost"] forState:UIControlStateNormal];
+        _revokeBtn.userInteractionEnabled = YES;
+        _editProjectBtn.userInteractionEnabled = YES;
+    }else{
+        [_revokeBtn setTitleColor:[UIColor colorWithHexString:@"#AAAAAA"] forState:UIControlStateNormal];
+        [_revokeBtn setImage:[UIImage imageNamed:@"myStartNoBended"] forState:UIControlStateNormal];
+        [_editProjectBtn setTitleColor:[UIColor colorWithHexString:@"#AAAAAA"] forState:UIControlStateNormal];
+        [_editProjectBtn setImage:[UIImage imageNamed:@"myStartNoPost"] forState:UIControlStateNormal];
+        _revokeBtn.userInteractionEnabled = NO;
+        _editProjectBtn.userInteractionEnabled = NO;
+    }
+}
+
+@end

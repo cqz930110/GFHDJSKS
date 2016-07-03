@@ -1,0 +1,19 @@
+//
+//  ShareView.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/16.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "ShareUtil.h"
+@protocol ShareViewDelegate<NSObject>
+- (void)clikeShareType:(NSString *)shareType;
+@end;
+
+@interface ShareView : UIView
+@property (weak, nonatomic) IBOutlet UIView *grayView;
+@property (weak, nonatomic) IBOutlet UIButton *cancelBtn;
+@property (weak, nonatomic) id<ShareViewDelegate> delegate;
+@end

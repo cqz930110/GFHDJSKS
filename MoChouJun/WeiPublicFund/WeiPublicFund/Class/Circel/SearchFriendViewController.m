@@ -1,0 +1,294 @@
+//
+//  SearchFriendViewController.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/2.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "SearchFriendViewController.h"
+#import "ApplyViewController.h"
+#import "InvitationManager.h"
+#import "NewFriendCell.h"
+#import "FriendDetailViewController.h"
+#import "ReflectUtil.h"
+#import "PSBuddy.h"
+@interface SearchFriendViewController ()<UITableViewDelegate,UITableViewDataSource, UIAlertViewDelegate,UISearchBarDelegate>
+@property (weak, nonatomic) IBOutlet UITableView *tableView;
+@property (strong, nonatomic) IBOutlet UISearchBar *searchBar;
+
+@property (strong, nonatomic) NSMutableArray *dataSource;
+@property (strong, nonatomic) NSIndexPath *selectedIndexPath;
+@end
+
+@implementation SearchFriendViewController
+
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+    [self setupNavi];
+    [self setupTableView];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [self.searchBar becomeFirstResponder];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+}
+
+- (void)setupTableView
+{
+    UIView *footerView = [UIView new];
+    _tableView.tableFooterView = footerView;
+    [self.tableView registerNib:[UINib nibWithNibName:@"NewFriendCell" bundle:nil] forCellReuseIdentifier:@"NewFriendCell"];
+}
+
+- (void)setupNavi
+{
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:[UIView new]];
+    self.navigationItem.titleView = self.searchBar;
+    [self setupBarButtomItemWithTitle:@" 取消" target:self action:@selector(cancelAction) leftOrRight:NO];
+}
+
+- (void)cancelAction
+{
+    [self.navigationController popToViewController:[self.navigationController.viewControllers objectAtIndex:self.navigationController.viewControllers.count - 3] animated:NO];
+}
+
+- (NSMutableArray *)dataSource
+{
+    if (!_dataSource)
+    {
+        _dataSource = [NSMutableArray array];
+    }
+    return _dataSource;
+}
+
+#pragma mark - Table view data source
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    // Return the number of sections.
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    // Return the number of rows in the section.
+    return [self.dataSource count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NewFriendCell *cell =[tableView dequeueReusableCellWithIdentifier:@"NewFriendCell" forIndexPath:indexPath];
+    PSBuddy *buddy = [self.dataSource objectAtIndex:indexPath.row];
+
+    [NetWorkingUtil setImage:cell.headerImage url:buddy.avatar defaultIconName:@"home_默认"];
+    cell.nameLabel.text = buddy.reviewName;
+    NSLog(@"-------%d",buddy.isFriend);
+    if (buddy.isFriend == 1) {
+        cell.stateImageView.hidden = NO;
+    }else{
+        cell.stateImageView.hidden = YES;
+    }
+    return cell;
+}
+
+#pragma mark - Table view delegate
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 50;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    FriendDetailViewController *vc = [[FriendDetailViewController alloc]init];
+    vc.friendDetailType = FriendDetailTypeUnBuddy;
+    PSBuddy *buddy = self.dataSource[indexPath.row];
+    vc.buddy = buddy;
+//    vc.userId = [NSString stringWithFormat:@"%ld",buddy.userId];
+    [self.navigationController pushViewController:vc animated:YES];
+//    self.selectedIndexPath = indexPath;
+//    NSString *buddyName = [self.dataSource objectAtIndex:indexPath.row];
+//    if ([self didBuddyExist:buddyName]) {
+//        NSString *message = [NSString stringWithFormat:@"'%@'已经是你的好友了!", buddyName];
+//        [MBProgressHUD showMessag:message toView:self.view];
+//        //        [EMAlertView showAlertWithTitle:message
+//        //                                message:nil
+//        //                        completionBlock:nil
+//        //                      cancelButtonTitle:NSLocalizedString(@"ok", @"OK")
+//        //                      otherButtonTitles:nil];
+//        
+//    }
+//    else if([self hasSendBuddyRequest:buddyName])
+//    {
+//        NSString *message = [NSString stringWithFormat:@"您已向'%@'发送好友请求了!", buddyName];
+//        [MBProgressHUD showMessag:message toView:self.view];
+//        
+//    }else{
+//        [self showMessageAlertView];
+//    }
+}
+
+#pragma mark - UISearchBarDelegate
+- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar
+{
+    [searchBar resignFirstResponder];
+}
+
+- (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar
+{
+    [self searchAction];
+}
+
+#pragma mark - action
+- (void)searchAction
+{
+    [self.searchBar resignFirstResponder];
+    if(_searchBar.text.length > 0)
+    {
+        NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+        NSString *loginUsername = [loginInfo objectForKey:kSDKUsername];
+        if ([_searchBar.text isEqualToString:loginUsername]) {
+            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示" message:@"不能添加自己为好友" delegate:nil cancelButtonTitle:@"好的" otherButtonTitles:nil, nil];
+            [alertView show];
+            return;
+        }
+        
+        //判断是否已发来申请
+        NSArray *applyArray = [[ApplyViewController shareController] dataSource];
+        if (applyArray && [applyArray count] > 0)
+        {
+            for (ApplyEntity *entity in applyArray)
+            {
+                
+                ApplyStyle style = [entity.style intValue];
+                BOOL isGroup = style == ApplyStyleFriend ? NO : YES;
+                if (isGroup)
+                {
+                    continue;
+                }
+
+                if ([entity.applicantUsername isEqualToString:_searchBar.text] &&[entity.applyState integerValue] == ApplyStateAcceptApplying)
+                {
+                    NSString *str = [NSString stringWithFormat:@"%@已经给你发来了申请", _searchBar.text];
+                    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示" message:str delegate:nil cancelButtonTitle:@"好的" otherButtonTitles:nil, nil];
+                    [alertView show];
+                    continue;
+                }
+            }
+        }
+        [self requestSearchFriend];
+        [_searchBar resignFirstResponder];
+    }
+}
+
+- (void)requestSearchFriend
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"FriendApply/Search" parameters:@{@"Condition":_searchBar.text} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1)
+        {
+            [MBProgressHUD dismissHUDForView:self.view];
+            [self.dataSource removeAllObjects];
+            if (![dic isKindOfClass:[NSString class]])
+            {
+                PSBuddy *buddy = [ReflectUtil reflectDataWithClassName:@"PSBuddy" otherObject:dic];
+                [self.dataSource addObject:buddy];
+                [self.tableView reloadData];
+            }
+        }
+        else if (status == -1)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:@"陛下，要贴寻人启事么，阿么找不到您的好朋友"];
+        }
+    }];
+}
+
+- (BOOL)hasSendBuddyRequest:(NSString *)buddyName
+{
+    NSArray *buddyList = [[[EaseMob sharedInstance] chatManager] buddyList];
+    for (EMBuddy *buddy in buddyList) {
+        if ([buddy.username isEqualToString:buddyName] &&
+            buddy.followState == eEMBuddyFollowState_NotFollowed &&
+            buddy.isPendingApproval) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (BOOL)didBuddyExist:(NSString *)buddyName
+{
+    NSArray *buddyList = [[[EaseMob sharedInstance] chatManager] buddyList];
+    for (EMBuddy *buddy in buddyList) {
+        if ([buddy.username isEqualToString:buddyName] &&
+            buddy.followState != eEMBuddyFollowState_NotFollowed) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (void)showMessageAlertView
+{
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil
+                                                    message:NSLocalizedString(@"saySomething", @"say somthing")
+                                                   delegate:self
+                                          cancelButtonTitle:NSLocalizedString(@"cancel", @"Cancel")
+                                          otherButtonTitles:NSLocalizedString(@"ok", @"OK"), nil];
+    [alert setAlertViewStyle:UIAlertViewStylePlainTextInput];
+    [alert show];
+}
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if ([alertView cancelButtonIndex] != buttonIndex) {
+        UITextField *messageTextField = [alertView textFieldAtIndex:0];
+        
+        NSString *messageStr = @"";
+        NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+        NSString *username = [loginInfo objectForKey:kSDKUsername];
+        if (messageTextField.text.length > 0) {
+            messageStr = [NSString stringWithFormat:@"%@：%@", username, messageTextField.text];
+        }
+        else
+        {
+            messageStr = [NSString stringWithFormat:NSLocalizedString(@"friend.somebodyInvite", @"%@ invite you as a friend"), username];
+        }
+        [self sendFriendApplyAtIndexPath:self.selectedIndexPath
+                                 message:messageStr];
+    }
+}
+
+- (void)sendFriendApplyAtIndexPath:(NSIndexPath *)indexPath
+                           message:(NSString *)message
+{
+    NSString *buddyName = [self.dataSource objectAtIndex:indexPath.row];
+    if (buddyName && buddyName.length > 0) {
+        [self showHudInView:self.view hint:NSLocalizedString(@"friend.sendApply", @"sending application...")];
+        EMError *error;
+        [[EaseMob sharedInstance].chatManager addBuddy:buddyName message:message error:&error];
+        [self hideHud];
+        if (error) {
+            [self showHint:NSLocalizedString(@"friend.sendApplyFail", @"send application fails, please operate again")];
+        }
+        else{
+            [self showHint:NSLocalizedString(@"friend.sendApplySuccess", @"send successfully")];
+            [self.navigationController popViewControllerAnimated:YES];
+        }
+    }
+}
+
+@end

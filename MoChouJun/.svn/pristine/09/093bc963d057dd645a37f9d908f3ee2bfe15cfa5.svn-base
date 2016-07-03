@@ -1,0 +1,405 @@
+/************************************************************
+  *  * EaseMob CONFIDENTIAL 
+  * __________________ 
+  * Copyright (C) 2013-2014 EaseMob Technologies. All rights reserved. 
+  *  
+  * NOTICE: All information contained herein is, and remains 
+  * the property of EaseMob Technologies.
+  * Dissemination of this information or reproduction of this material 
+  * is strictly forbidden unless prior written permission is obtained
+  * from EaseMob Technologies.
+  */
+
+#import "ApplyViewController.h"
+
+#import "ApplyFriendCell.h"
+#import "InvitationManager.h"
+#import "PSBarButtonItem.h"
+#import "ChatFriendDeatailViewController.h"
+#import "NoMsgView.h"
+#import "ChatBuddyDAO.h"
+#import "PSChat.h"
+#import "ChatViewController.h"
+#import "SendCMDMessageUtil.h"
+#import "PSBuddy.h"
+#import "ReflectUtil.h"
+
+
+static ApplyViewController *controller = nil;
+
+@interface ApplyViewController ()<ApplyFriendCellDelegate>
+@property (strong, nonatomic) NoMsgView *noMsgView;
+
+@end
+
+@implementation ApplyViewController
++ (instancetype)shareController
+{
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        controller = [[self alloc] initWithStyle:UITableViewStylePlain];
+    });
+    
+    return controller;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"新的好友";
+    self.tableView.tableFooterView = [[UIView alloc] init];
+    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    PSBarButtonItem *backItem = [PSBarButtonItem itemWithTitle:nil barStyle:PSNavItemStyleBack target:self action:@selector(back)];
+    self.navigationItem.leftBarButtonItem = backItem;
+    _unReadCount = 0;
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [self loadDataSourceFromLocalDB];
+    
+    if (_unReadCount != 0)
+    {
+        _unReadCount = 0;
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"setupUntreatedApplyCount" object:nil];
+    }
+}
+
+#pragma mark - getter
+- (NSMutableArray *)dataSource
+{
+    if (_dataSource == nil) {
+        _dataSource = [NSMutableArray array];
+    }
+    return _dataSource;
+}
+
+- (NSString *)loginUsername
+{
+    NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+    return [loginInfo objectForKey:kSDKUsername];
+}
+
+#pragma mark - ApplyFriendCellDelegate
+- (void)applyCellAddFriend:(ApplyFriendCell *)cell
+{
+    NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+    ApplyEntity *entity = [self.dataSource objectAtIndex:indexPath.row];
+    // 添加好友
+    // 通过验证
+    [self requestFirendApply:entity];
+}
+
+#pragma mark - Request
+- (void)requestFirendApply:(ApplyEntity *)entity
+{
+    [self agressEaseMobRequestApplyEntity:entity];
+    // 通过验证
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [[NetWorkingUtil netWorkingUtil] requestDic4MethodName:@"FriendApply/Reply" parameters:@{@"UserName":entity.applicantUsername,@"Result":@"1"} result:^(NSDictionary *dic, int status, NSString *msg)
+     {
+         if (status == 1 || status == 2)
+         {
+             [MBProgressHUD dismissHUDForView:self.view withSuccess:@"发送申请成功"];
+             NSString *loginUsername = [[[EaseMob sharedInstance].chatManager loginInfo] objectForKey:kSDKUsername];
+             entity.applyState = @(ApplyStateAccept);
+             [InvitationManager addInvitation:entity loginUser:loginUsername];
+            //创建回话聊天
+             [self gotoChatApplyEntity:entity];
+             
+             // 添加好友
+//             if (![ChatFriendDAO existChatFriendWithUsername:entity.applicantUsername])
+//             {
+                 // 需要添加 请求
+//                 [self requestNewFriendsWithUsernames:entity.applicantUsername];
+//             }
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+     }];
+}
+
+//- (void)requestNewFriendsWithUsernames:(NSString *)usernames
+//{
+//    [[NetWorkingUtil netWorkingUtil] requestArr4MethodName:@"Friend/InfoList" parameters:@{@"UserNameList":usernames} result:^(NSArray *arr, int status, NSString *msg)
+//     {
+//         if (status == 1 && arr.count)
+//         {
+//             [ChatFriendDAO updateChatFriends:arr];
+//         }
+//     } convertClassName:@"PSBuddy" key:@"listinfo"];
+//}
+
+#pragma mark - EaseMob
+- (BOOL)agressEaseMobRequestApplyEntity:(ApplyEntity *)applyEntity
+{
+    ApplyStyle applyStyle = [applyEntity.style intValue];
+    EMError *error;
+    
+    if (applyStyle == ApplyStyleGroupInvitation) {
+        [[EaseMob sharedInstance].chatManager acceptApplyJoinGroup:applyEntity.groupId groupname:applyEntity.groupSubject applicant:applyEntity.applicantUsername error:&error];
+    }
+    else if (applyStyle == ApplyStyleJoinGroup)
+    {
+        [[EaseMob sharedInstance].chatManager acceptApplyJoinGroup:applyEntity.groupId groupname:applyEntity.groupSubject applicant:applyEntity.applicantUsername error:&error];
+    }
+    else if(applyStyle == ApplyStyleFriend)
+    {
+        [[EaseMob sharedInstance].chatManager acceptBuddyRequest:applyEntity.applicantUsername error:&error];
+    }
+    return !error;
+}
+
+
+- (void)gotoChatApplyEntity:(ApplyEntity *)applyEntity
+{
+     NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+     NSString *loginUsername = [loginInfo objectForKey:kSDKUsername];
+     if (loginUsername && loginUsername.length > 0) {
+         if ([loginUsername isEqualToString:applyEntity.applicantUsername]) {
+             UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示" message:@"不能和自己聊天" delegate:nil cancelButtonTitle:@"好的" otherButtonTitles:nil, nil];
+             [alertView show];
+             
+             return;
+         }
+     }
+    
+    ChatViewController *chatController = [[ChatViewController alloc] initWithConversationChatter:applyEntity.applicantUsername conversationType:eConversationTypeChat];
+    [SendCMDMessageUtil sendChatApplyMessageReceiveUsername:applyEntity.applicantUsername];
+    chatController.title = applyEntity.applicantNick;
+    chatController.isProjectChat = NO;
+    UINavigationController *navi = self.navigationController;
+    [navi popToRootViewControllerAnimated:NO];
+    [navi pushViewController:chatController animated:YES];
+}
+
+#pragma mark - UITableViewDelegate & UITableViewDataSource
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *CellIdentifier = @"ApplyFriendCell";
+    ApplyFriendCell *cell = (ApplyFriendCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+    if (cell == nil)
+    {
+        cell = [[ApplyFriendCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    }
+    
+    ApplyEntity *entity = [self.dataSource objectAtIndex:indexPath.row];
+    ApplyStyle applyStyle = [entity.style intValue];
+    if (applyStyle == ApplyStyleGroupInvitation)
+    {
+        cell.titleLabel.text =@"群组通知";
+        cell.headerImageView.image = [UIImage imageNamed:@"groupPrivateHeader"];
+    }
+    else if (applyStyle == ApplyStyleJoinGroup)
+    {
+        cell.titleLabel.text = @"群组通知";
+        
+        cell.headerImageView.image = [UIImage imageNamed:@"groupPrivateHeader"];
+    }
+    else if(applyStyle == ApplyStyleFriend)
+    {
+        PSChat *chat = [ChatBuddyDAO chatBuddyWithUserame:entity.applicantUsername];
+        entity.applicantNick = chat.showName;
+        cell.titleLabel.text = chat.showName;
+        [NetWorkingUtil setImage:cell.headerImageView url:chat.avatar defaultIconName:@"home_默认"];
+        cell.contentLabel.text = @"对方请求添加你为好友";
+    }
+    cell.applyState = [entity.applyState integerValue];
+    cell.delegate = self;
+    return cell;
+}
+
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return YES;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForDeleteConfirmationButtonForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return @"删除";
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (editingStyle == UITableViewCellEditingStyleDelete)
+    {
+        ApplyEntity *entity = [self.dataSource objectAtIndex:indexPath.row];
+        NSString *loginUsername = [[[EaseMob sharedInstance].chatManager loginInfo] objectForKey:kSDKUsername];
+        EMError *error;
+        if (!error)
+        {
+            if ([entity.applyState integerValue]== ApplyStateAcceptApplying)
+            {
+                [[EaseMob sharedInstance].chatManager rejectBuddyRequest:entity.applicantUsername reason:@"拒绝" error:&error];
+            }
+            [_dataSource removeObjectAtIndex:indexPath.row];
+            [InvitationManager removeInvitation:entity loginUser:loginUsername];
+            [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+        }
+        else
+        {
+            [MBProgressHUD showError:@"删除失败" toView:self.view];
+        }
+    }
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    ApplyEntity *entity = [self.dataSource objectAtIndex:indexPath.row];
+    return [ApplyFriendCell heightWithContent:entity.reason];
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+     ApplyEntity *entity = [self.dataSource objectAtIndex:indexPath.row];
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if ([entity.applyState integerValue]!= ApplyStateAcceptApplying)
+    {
+        return;
+    }
+    
+    if([entity.style intValue] == ApplyStyleFriend)
+    {
+        ChatFriendDeatailViewController *vc = [[ChatFriendDeatailViewController alloc]init];
+        
+        vc.chatFriendDetailType = ChatFriendDetailTypeUnBuddy;
+        vc.username = entity.applicantUsername;
+        vc.entity = entity;
+        [self.navigationController pushViewController:vc animated:YES];
+    }
+}
+
+#pragma mark - public
+- (void)addNewApply:(NSDictionary *)dictionary
+{
+    NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+    NSString *loginName = [loginInfo objectForKey:kSDKUsername];
+    
+    if (dictionary && [dictionary count] > 0)
+    {
+        NSString *applyUsername = [dictionary objectForKey:@"username"];
+        ApplyStyle style = [[dictionary objectForKey:@"applyStyle"] intValue];
+        if (applyUsername && applyUsername.length > 0)
+        {
+            for (int i = ((int)[_dataSource count] - 1); i >= 0; i--)
+            {
+                ApplyEntity *oldEntity = [_dataSource objectAtIndex:i];
+                ApplyStyle oldStyle = [oldEntity.style intValue];
+                if (oldStyle == style && [applyUsername isEqualToString:oldEntity.applicantUsername])
+                {
+                    if(style != ApplyStyleFriend)
+                    {
+                        NSString *newGroupid = [dictionary objectForKey:@"groupname"];
+                        if (newGroupid || [newGroupid length] > 0 || [newGroupid isEqualToString:oldEntity.groupId])
+                        {
+                            break;
+                        }
+                    }
+                    oldEntity.reason = [dictionary objectForKey:@"applyMessage"];
+                    oldEntity.applyState = @(ApplyStateAcceptApplying);
+
+                    _unReadCount += 1;
+                    [InvitationManager addInvitation:oldEntity loginUser:loginName];
+                    [self requestFriendDetailWithApplyEntity:oldEntity];
+                    self.noMsgView.hidden = YES;
+//                    [self.tableView reloadData];
+                    return;
+                }
+            }
+            
+            //new apply
+            ApplyEntity * newEntity= [[ApplyEntity alloc] init];
+            newEntity.applyState = @(ApplyStateAcceptApplying);
+            newEntity.applicantUsername = [dictionary objectForKey:@"username"];
+            newEntity.style = [dictionary objectForKey:@"applyStyle"];
+            newEntity.reason = [dictionary objectForKey:@"applyMessage"];
+            
+            newEntity.receiverUsername = loginName;
+            
+            NSString *groupId = [dictionary objectForKey:@"groupId"];
+            newEntity.groupId = (groupId && groupId.length > 0) ? groupId : @"";
+            
+            NSString *groupSubject = [dictionary objectForKey:@"groupname"];
+            newEntity.groupSubject = (groupSubject && groupSubject.length > 0) ? groupSubject : @"";
+            
+            NSString *loginUsername = [[[EaseMob sharedInstance].chatManager loginInfo] objectForKey:kSDKUsername];
+            [InvitationManager addInvitation:newEntity loginUser:loginUsername];
+            _unReadCount += 1;
+            [self.dataSource insertObject:newEntity atIndex:0];
+            self.noMsgView.hidden = YES;
+            [self requestFriendDetailWithApplyEntity:newEntity];
+        }
+    }
+}
+
+- (void)requestFriendDetailWithApplyEntity:(ApplyEntity *)entity
+{
+    [[NetWorkingUtil netWorkingUtil] requestDic4MethodName:@"Friend/View" parameters:@{@"UserName":entity.applicantUsername} result:^(NSDictionary *dic, int status, NSString *msg)
+     {
+         if (status == 1)
+         {
+             NSDictionary *userDic = [dic valueForKey:@"User"];
+             PSBuddy *buddy = [ReflectUtil reflectDataWithClassName:@"PSBuddy" otherObject:userDic];
+            // 更新数据库
+             PSChat *chat = [ReflectUtil reflectDataWithClassName:@"PSChat" otherObject:userDic];
+             chat.showName = buddy.reviewName;
+             chat.showType = 1;
+             [ChatBuddyDAO updateChatBuddy:chat];
+            [self.tableView reloadData];
+         }
+     }];
+}
+
+- (void)loadDataSourceFromLocalDB
+{
+    [_dataSource removeAllObjects];
+    NSDictionary *loginInfo = [[[EaseMob sharedInstance] chatManager] loginInfo];
+    NSString *loginName = [loginInfo objectForKey:kSDKUsername];
+    if(loginName && [loginName length] > 0)
+    {
+        
+        NSArray * applyArray = [InvitationManager applyEmtitiesWithloginUser:loginName];
+        [self.dataSource addObjectsFromArray:applyArray];
+        if (self.dataSource.count == 0)
+        {
+            if (self.noMsgView == nil)
+            {
+                self.noMsgView = [[[NSBundle mainBundle] loadNibNamed:@"NoMsgView" owner:nil options:nil] lastObject];
+                self.noMsgView.frame = self.view.bounds;
+                [self.view addSubview:self.noMsgView];
+            }
+            else
+            {
+                self.noMsgView.hidden = NO;
+            }
+        }
+        else
+        {
+            self.noMsgView.hidden = YES;
+            [self.tableView reloadData];
+            
+        }
+    }
+}
+
+- (void)back
+{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)clear
+{
+    [_dataSource removeAllObjects];
+    [self.tableView reloadData];
+}
+
+@end

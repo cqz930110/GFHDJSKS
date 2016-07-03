@@ -1,0 +1,218 @@
+//
+//  MyStartProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/8.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "MyStartProjectViewController.h"
+#import "StartProjectTableViewCell.h"
+#import "MySupportPeopleViewController.h"
+#import "MyStartReturnObj.h"
+#import "ReflectUtil.h"
+#import "WeiProjectDetailsViewController.h"
+#import "SupportReturnViewController.h"
+
+@interface MyStartProjectViewController ()<UITableViewDataSource,UITableViewDelegate,SupportReturnViewControllerDelegate>
+{
+    NSUInteger _pageNum;
+    NSUInteger _pageIndex;
+}
+
+@property (weak, nonatomic) IBOutlet UITableView *tableView;
+@property (nonatomic,strong)NSMutableArray *projects;
+
+@end
+
+@implementation MyStartProjectViewController
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"我的发起";
+    [self backBarItem];
+    [self setTableView];
+    _pageIndex = 1;
+    _pageNum = 10;
+    [self getStartProjectData];
+}
+
+- (void)setTableView
+{
+    [self setupRefreshWithTableView:_tableView];
+    _tableView.mj_footer.hidden = YES;
+    [_tableView registerNib:[UINib nibWithNibName:@"StartProjectTableViewCell" bundle:nil] forCellReuseIdentifier:@"StartProjectTableViewCell"];
+}
+
+#pragma mark - Setter
+- (NSMutableArray *)projects
+{
+    if (!_projects)
+    {
+        _projects = [NSMutableArray array];
+    }
+    return _projects;
+}
+
+#pragma mark - Refresh
+- (void)footerRefreshloadData
+{
+    _pageIndex ++;
+    if (_tableView.mj_footer.state != MJRefreshStateNoMoreData)
+    {
+        [self getStartProjectData];
+    }
+}
+
+- (void)headerRefreshloadData
+{
+    _pageIndex = 1;
+    [self getStartProjectData];
+}
+
+#pragma mark - Request
+- (void)getStartProjectData
+{
+    [self.httpUtil requestDic4MethodName:@"CrowdFund/CreatedList" parameters:@{@"PageIndex":@(_pageIndex),@"PageSize":@(_pageNum)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        [_tableView.mj_footer endRefreshing];
+        [_tableView.mj_header endRefreshing];
+        
+        if (status == 1 || status == 2)
+        {
+            if (_pageIndex == 1)
+            {
+                [_projects removeAllObjects];
+            }
+            
+            NSArray *array = [ReflectUtil reflectDataWithClassName:@"MyStartReturnObj" otherObject:[dic valueForKey:@"DataSet"] isList:YES];
+            
+            [self.projects addObjectsFromArray:array];
+            _tableView.mj_footer.hidden = NO;
+            if (_pageNum > array.count)
+            {
+                [_tableView.mj_footer endRefreshingWithNoMoreData];
+            }
+            
+            if (_projects.count == 0)
+            {
+                self.hideNoMsg = NO;
+            }
+            else
+            {
+                self.hideNoMsg = YES;
+                [_tableView reloadData];
+            }
+        }
+        else
+        {
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+#pragma mark - Actions
+- (void)skipProjectDetailBtnClick:(UIButton *)sender
+{
+    MyStartReturnObj *myStart = [_projects objectAtIndex:sender.tag];
+    WeiProjectDetailsViewController *weiProjectDetailsVC = [[WeiProjectDetailsViewController alloc] init];
+    weiProjectDetailsVC.projectId = myStart.Id;
+    [self.navigationController pushViewController:weiProjectDetailsVC animated:YES];
+}
+
+#pragma mark - SupportReturnViewControllerDelegate
+- (void)supportReturnStateDidChangeReturn:(MyStartReturnObj *)startReturn
+{
+    NSUInteger index = [_projects indexOfObject:startReturn];
+    NSIndexPath *indexPath = [NSIndexPath indexPathForRow:index inSection:0];
+    [_tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationTop];
+}
+
+#pragma mark - UITableViewDelegate & UITableViewDataSource
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return _projects.count;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 100;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"StartProjectTableViewCell";
+    StartProjectTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil)
+    {
+        cell = [[StartProjectTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    MyStartReturnObj *myStartReturnObj = [_projects objectAtIndex:indexPath.row];
+    cell.myStartReturnObj = myStartReturnObj;
+    [cell.skipProjectDetailBtn addTarget:self action:@selector(skipProjectDetailBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    cell.skipProjectDetailBtn.tag = indexPath.row;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    MyStartReturnObj *myStartReturn = [_projects objectAtIndex:indexPath.row];
+    
+    if (myStartReturn.statusId == 5 || myStartReturn.statusId == 4 )
+    {
+        return;
+    }
+    
+    if (myStartReturn.repayWayCount == 0)
+    {
+        MySupportPeopleViewController *vc = [[MySupportPeopleViewController alloc] init];
+        vc.crowdFundId = myStartReturn.Id;
+        [self.navigationController pushViewController:vc animated:YES];
+    }
+    else
+    {
+        SupportReturnViewController *mySupportPeopleVC = [[SupportReturnViewController alloc] init];
+        mySupportPeopleVC.myStartReturn = myStartReturn;
+        mySupportPeopleVC.delegate = self;
+        [self.navigationController pushViewController:mySupportPeopleVC animated:YES];
+    }
+}
+
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    MyStartReturnObj *myStartReturnObj = [_projects objectAtIndex:indexPath.row];
+    if (myStartReturnObj.statusId != 0)
+    {
+        return NO;
+    }
+    return YES;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    MyStartReturnObj *myStartReturnObj = [_projects objectAtIndex:indexPath.row];
+    if (myStartReturnObj.statusId == 0)
+    {
+        [self.httpUtil requestDic4MethodName:@"CrowdFund/Delete" parameters:@{@"Id":@(myStartReturnObj.Id)} result:^(NSDictionary *dic, int status, NSString *msg)
+        {
+            if (status == 1 || status == 2)
+            {
+                _pageIndex = 1;
+                [self getStartProjectData];
+                [MBProgressHUD showSuccess:msg toView:self.view];
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"UpdateWeiProject" object:nil];
+            }
+            else
+            {
+                [MBProgressHUD showError:msg toView:self.view];
+            }
+        }];
+    }
+}
+
+- (nullable NSString *)tableView:(UITableView *)tableView titleForDeleteConfirmationButtonForRowAtIndexPath:(NSIndexPath *)indexPath NS_AVAILABLE_IOS(3_0)
+{
+    return @"撤销";
+}
+
+@end

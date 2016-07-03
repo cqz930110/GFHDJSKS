@@ -1,0 +1,770 @@
+//
+//  StartFirstProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/6.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "StartFirstProjectViewController.h"
+#import "StartSecondProjectViewController.h"
+#import "StartImageEditCollectionViewCell.h"
+#import "PSActionSheet.h"
+#import "UIImage-Extensions.h"
+#import "AudioView.h"
+#import "NSString+DocumentPath.h"
+#import "EMAudioRecorderUtil.h"
+#import "EMAudioPlayerUtil.h"
+#import "User.h"
+#import "ELCImagePickerHeader.h"
+#import <MWPhotoBrowser.h>
+#import "BaseNavigationController.h"
+#import <AVFoundation/AVFoundation.h>
+#import "ProjectMasterplateViewController.h"
+#import "MMAlertView.h"
+#import "MMPopupItem.h"
+#import "UpYun.h"
+
+@interface UIImage (Seleced)
+@property (nonatomic,assign) BOOL isSelected;
+@property (nonatomic,copy)  NSString *assetUrl;
+@end
+
+@implementation UIImage (Seleced)
+
+- (void)setIsSelected:(BOOL)isSelected
+{
+    NSNumber *boolNumber = [NSNumber numberWithBool:isSelected];
+    objc_setAssociatedObject(self, @selector(isSelected), boolNumber, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (BOOL)isSelected
+{
+    NSNumber *number = objc_getAssociatedObject(self, _cmd);
+    return [number boolValue];
+}
+
+- (void)setAssetUrl:(NSString *)assetUrl
+{
+    objc_setAssociatedObject(self, @selector(assetUrl), assetUrl, OBJC_ASSOCIATION_COPY);
+}
+
+- (NSString *)assetUrl
+{
+    return objc_getAssociatedObject(self, _cmd);
+}
+
+@end
+
+@interface StartFirstProjectViewController ()<UITextViewDelegate,UICollectionViewDataSource,UICollectionViewDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate,UIActionSheetDelegate,ELCImagePickerControllerDelegate,MWPhotoBrowserDelegate,UITextFieldDelegate,StartSecondProjectViewControllerDelegate>
+@property (weak, nonatomic) IBOutlet UITextField *startTitleTextField;
+@property (weak, nonatomic) IBOutlet UITextView *introductTextView;
+@property (weak, nonatomic) IBOutlet UILabel *introductLab1;
+@property (weak, nonatomic) IBOutlet UILabel *introductLab2;
+@property (weak, nonatomic) IBOutlet UICollectionView *startImageCollectionView;
+@property (weak, nonatomic) IBOutlet UICollectionViewFlowLayout *startImageLayout;
+
+@property (nonatomic , strong) UIImagePickerController *imagePicerController;
+
+@property (nonatomic , strong) NSMutableArray *unSelectedImages;
+@property (nonatomic , assign) BOOL isOptionAllImage;
+@property (nonatomic , strong) UIImage *deleteImage;
+
+@property (nonatomic , strong) NSMutableArray *haveImages;
+
+@property (nonatomic,strong)AudioView *audioView;
+@property (nonatomic,strong)NSTimer *timer;
+@property (nonatomic,strong)NSString *audioPath;
+@property (nonatomic,strong)NSData *recodeData;
+@property (nonatomic,assign)BOOL recordPlaying;
+
+@property (nonatomic,assign)BOOL hideVideo;
+
+@property (nonatomic,assign)int playTime;
+@property (nonatomic,assign)int second;
+@property (nonatomic,assign)int minute;
+
+@property (nonatomic,assign)BOOL beginAnimation;
+
+@property (nonatomic,strong)UIBarButtonItem *myButton2;
+@property (nonatomic,strong)NSMutableArray *imageUrlArr;
+
+@property (nonatomic,strong)NSString *draftId;
+@property (nonatomic,strong)NSString *type;
+
+@property (nonatomic,strong)NSDictionary *returnAllInfo;
+@end
+
+@implementation StartFirstProjectViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = [UIColor whiteColor];
+    self.automaticallyAdjustsScrollViewInsets = NO;
+
+    _isOptionAllImage = NO;
+    self.title = @"发起项目";
+    [self setInfo];
+    _playTime = 0;
+    _second = 0;
+    _minute = 0;
+    _startTitleTextField.attributedPlaceholder = [[NSAttributedString alloc] initWithString:@"*项目标题:30字内,说明你筹款的目的" attributes:@{NSForegroundColorAttributeName :[UIColor colorWithHexString:@"#AAAAAA"]}];
+    [_startTitleTextField addTarget:self action:@selector(textDidChange) forControlEvents:UIControlEventEditingChanged];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    [self setBarButtonItems];
+}
+
+- (void)textDidChange
+{
+    if (!IsStrEmpty(_startTitleTextField.text)) {
+        _myButton2.enabled = YES;
+        [_myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+    }else if (IsStrEmpty(_introductTextView.text)){
+        _myButton2.enabled = NO;
+        [_myButton2 setTintColor:[UIColor colorWithHexString:@"#AAAAAA"]];
+    }
+    if (_startTitleTextField.text.length > 30) {
+        _startTitleTextField.text = [_startTitleTextField.text substringToIndex:30];
+        return;
+    }
+}
+
+#pragma mark - Setter & Getter
+- (NSMutableArray *)haveImages
+{
+    if (!_haveImages)
+    {
+        _haveImages = [NSMutableArray arrayWithCapacity:7];
+        [_haveImages addObject:self.deleteImage];
+    }
+    return _haveImages;
+}
+
+- (NSMutableArray *)imageUrlArr
+{
+    if (!_imageUrlArr) {
+        _imageUrlArr = [[NSMutableArray alloc]init];
+    }
+    return _imageUrlArr;
+}
+
+- (NSMutableArray *)unSelectedImages
+{
+    if (!_unSelectedImages)
+    {
+        _unSelectedImages = [NSMutableArray arrayWithCapacity:7];
+    }
+    return _unSelectedImages;
+}
+
+- (UIImage *)deleteImage
+{
+    if (!_deleteImage)
+    {
+        _deleteImage  = [UIImage imageNamed:@"uploadImage"];
+    }
+    return _deleteImage;
+}
+
+- (NSDictionary *)returnAllInfo
+{
+    if (!_returnAllInfo) {
+        _returnAllInfo = [NSDictionary dictionary];
+    }
+    return _returnAllInfo;
+}
+
+- (void)setInfo
+{
+    [_startTitleTextField setValue:[UIColor colorWithHexString:@"#DEDFE0"] forKeyPath:@"_placeholderLabel.textColor"];
+    
+    self.hideVideo = YES;
+    
+//    [self setupBarButtomItemWithTitle:@"下一步" target:self action:@selector(nextBtnClick) leftOrRight:NO];
+    
+
+//    [self setupBarButtomItemWithTitle:@" 取消" target:self action:@selector(backNext) leftOrRight:YES];
+    
+    [_startImageCollectionView registerNib:[UINib nibWithNibName:@"StartImageEditCollectionViewCell" bundle:nil] forCellWithReuseIdentifier:@"StartImageEditCollectionViewCell"];
+    if (SCREEN_WIDTH == 320) {
+        _startImageLayout.itemSize = CGSizeMake((SCREEN_WIDTH - 30 - 10 * 2) / 3, 80);
+    }else if (SCREEN_WIDTH == 375){
+        _startImageLayout.itemSize = CGSizeMake((SCREEN_WIDTH - 30 - 10 * 2) / 3, 90);
+    }else if (SCREEN_WIDTH == 414){
+        _startImageLayout.itemSize = CGSizeMake((SCREEN_WIDTH - 30 - 10 * 2) / 3, 100);
+    }
+    
+    _startImageCollectionView.delegate = self;
+    _startImageCollectionView.dataSource = self;
+}
+
+- (void)setBarButtonItems
+{
+    UIBarButtonItem *myButton1 = [[UIBarButtonItem alloc]
+                                   initWithTitle:@"下一步"
+                                   style:UIBarButtonItemStyleBordered
+                                   target:self
+                                   action:@selector(nextBtnClick)];
+    myButton1.width = 40;
+    [myButton1 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+    
+    _myButton2 = [[UIBarButtonItem alloc]
+                                   initWithTitle:@"草稿"
+                                   style:UIBarButtonItemStyleBordered
+                                   target:self
+                                   action:@selector(draftBtnClick)];
+    _myButton2.width = 60;
+    [_myButton2 setTintColor:[UIColor colorWithHexString:@"#AAAAAA"]];
+    _myButton2.enabled = NO;
+    
+    self.tabBarController.navigationItem.rightBarButtonItems = @[myButton1,_myButton2];
+    self.tabBarController.navigationItem.leftBarButtonItem = nil;
+}
+
+- (void)backNext
+{
+    if (!IsStrEmpty(_startTitleTextField.text) || !IsStrEmpty(_introductTextView.text) || _haveImages.count > 1) {
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"确定退出吗？" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+        alert.tag = 40000;
+        [alert show];
+    }else{
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+//   下一步
+- (void)nextBtnClick
+{
+    
+    if (IsStrEmpty(_startTitleTextField.text)) {
+        [MBProgressHUD showMessag:@"请填写项目标题" toView:self.view];
+        return;
+    }
+    if (IsStrEmpty(_introductTextView.text)) {
+        [MBProgressHUD showMessag:@"请填写项目详情" toView:self.view];
+        return;
+    }
+    
+    if (_haveImages.count == 1) {
+        [MBProgressHUD showMessag:@"请上传项目图片" toView:self.view];
+        return;
+    }
+    
+    if (_startTitleTextField.text.length < 10) {
+        [MBProgressHUD showMessag:@"项目标题过于简短,请输入至少10个字符" toView:self.view];
+        return;
+    }
+    if (_introductTextView.text.length < 100) {
+        [MBProgressHUD showMessag:@"项目介绍过于简短,请输入至少100个字" toView:self.view];
+        return;
+    }
+    
+    if (_haveImages.count <= 4) {
+        [MBProgressHUD showMessag:@"请至少上传4张图片" toView:self.view];
+        return;
+    }
+    
+    
+    
+    if (_startTitleTextField.text.length > 30) {
+        [MBProgressHUD showMessag:@"您的项目标题超过了最大长度哦" toView:self.view];
+        return;
+    }
+    
+    NSDictionary *dic = @{@"Title":_startTitleTextField.text,
+                          @"Introduct":_introductTextView.text,
+                          @"ProjectImages":_haveImages};
+    NSDictionary *draftDic;
+    if (_imageUrlArr && _imageUrlArr.count == _haveImages.count - 1) {
+        draftDic = @{@"Title":_startTitleTextField.text,
+                                   @"Introduct":_introductTextView.text,
+                                   @"ProjectImages":_imageUrlArr};
+    }
+    
+    
+    StartSecondProjectViewController *startSecondVC = [StartSecondProjectViewController new];
+    startSecondVC.startProjectDic = dic;
+    if (IsStrEmpty(_draftId)) {
+        startSecondVC.draftId = 0;
+    }else{
+        startSecondVC.draftId = [_draftId integerValue];
+        startSecondVC.draftProjectDic = draftDic;
+    }
+    startSecondVC.delegate = self;
+    startSecondVC.returnAllDic = _returnAllInfo;
+    [self.navigationController pushViewController:startSecondVC animated:YES];
+}
+
+//   对回报相关数据的代理
+- (void)startSecondProjectViewInfo:(NSDictionary *)userInfo
+{
+    self.returnAllInfo = userInfo;
+}
+
+#pragma mark 草稿
+- (void)draftBtnClick
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    
+    [self uploadPhoto];
+}
+
+- (void)draftUpload
+{
+    NSString *imageUrl = @"";
+    if (_imageUrlArr.count == 0) {
+        imageUrl = @"";
+    }else if (_imageUrlArr.count == 1) {
+        imageUrl = _imageUrlArr[0];
+    }else{
+        for (int i = 1; i < _imageUrlArr.count; i ++) {
+            imageUrl = [_imageUrlArr[0] stringByAppendingString:[NSString stringWithFormat:@",%@",_imageUrlArr[i]]];
+        }
+    }
+    NSInteger draftId;
+    if ([_type isEqual:@"草稿"]) {
+        draftId = 0;
+    }else{
+        draftId = [_draftId integerValue];
+    }
+    [self.httpUtil requestDic4MethodName:@"Draft/Save" parameters:@{@"DraftId":@(draftId),@"Name":_startTitleTextField.text,@"Content":_introductTextView.text,@"Images":imageUrl} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            NSLog(@"------%@",dic);
+            _draftId = [NSString stringWithFormat:@"%@",[dic objectForKey:@"DraftId"]];
+            [MBProgressHUD dismissHUDForView:self.view];
+            if ([_type isEqual:@"草稿"]) {
+                [MBProgressHUD showMessag:@"已保存草稿" toView:self.view];
+            }else{
+                
+                MMAlertViewConfig *config = [MMAlertViewConfig globalConfig];
+                config.splitColor = [UIColor colorWithHexString:@"E5E5E5"];
+                config.itemHighlightColor = [UIColor colorWithHexString:@"#3194FF"];
+                NSArray *items = @[MMItemMake(@"我知道了", MMItemTypeHighlight, nil)];
+                
+                MMAlertView *alertView = [[MMAlertView alloc]initWithTitle:@"已保存草稿" detail:@"注：您可至“我的”－“我的草稿”中查看项目草稿，如该项目成功发布，将不保留该项目的草稿" items:items];
+                alertView.attachedView = self.view;
+                _type = @"草稿";
+                [alertView show];
+            }
+            
+            _myButton2.enabled = NO;
+            [_myButton2 setTintColor:[UIColor colorWithHexString:@"#AAAAAA"]];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+            _myButton2.enabled = YES;
+            [_myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+        }
+    }];
+}
+
+//   TextViewDelegate
+- (void)textViewDidChange:(UITextView *)textView
+{
+    
+    if (textView.tag == 1) {
+        if (IsStrEmpty(textView.text)) {
+            _introductLab1.hidden = NO;
+            _introductLab2.hidden = NO;
+            if (IsStrEmpty(_startTitleTextField.text)) {
+                _myButton2.enabled = NO;
+                [_myButton2 setTintColor:[UIColor colorWithHexString:@"#AAAAAA"]];
+            }
+        }else{
+            _introductLab1.hidden = YES;
+            _introductLab2.hidden = YES;
+            _myButton2.enabled = YES;
+            [_myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+        }
+    }
+}
+
+- (UIImagePickerController *)imagePicerController
+{
+    if (!_imagePicerController)
+    {
+        _imagePicerController = [[UIImagePickerController alloc]init];
+        _imagePicerController.navigationBar.tintColor = [UIColor colorWithHexString:@"#2B2B2B"];
+        _imagePicerController.navigationBar.barTintColor = NaviColor;
+        [_imagePicerController.navigationBar setTitleTextAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:19.0f],NSForegroundColorAttributeName:[UIColor colorWithHexString:@"#2B2B2B"]}];
+        _imagePicerController.delegate = self;
+        _imagePicerController.allowsEditing = YES;
+    }
+    return _imagePicerController;
+}
+
+#pragma mark - UIActionSheetDelegate
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (actionSheet.tag == 20000){
+        if (buttonIndex == 0)
+        {
+            // 判断是否能拍照
+            if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera])
+            {
+                self.imagePicerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+                self.imagePicerController.showsCameraControls = YES;//takePicture
+                [self presentViewController:self.imagePicerController animated:YES completion:nil];
+            }
+            else
+            {
+                ULog(@"设备不支持");
+            }
+        }
+        else if (buttonIndex == 1)
+        {
+            ELCImagePickerController *elcPicker = [[ELCImagePickerController alloc] initImagePicker];
+            //            elcPicker.navigationBar.titleTextAttributes
+            elcPicker.navigationBar.tintColor = [UIColor whiteColor];
+            elcPicker.navigationBar.barTintColor = NaviColor;
+            elcPicker.maximumImagesCount = 6 - (_haveImages.count - 1); //Set the maximum number of images to select to 100
+            elcPicker.returnsOriginalImage = YES; //Only return the fullScreenImage, not the fullResolutionImage
+            elcPicker.returnsImage = YES; //Return UIimage if YES. If NO, only return asset location information
+            elcPicker.onOrder = YES; //For multiple image selection, display and return order of selected images
+            elcPicker.mediaTypes = @[(NSString *)kUTTypeImage]; //Supports image and movie types
+            
+            elcPicker.imagePickerDelegate = self;
+            
+            [self presentViewController:elcPicker animated:YES completion:nil];
+        }
+    }
+}
+
+#pragma mark - ELCImagePickerControllerDelegate Methods
+- (void)elcImagePickerController:(ELCImagePickerController *)picker didFinishPickingMediaWithInfo:(NSArray *)info
+{
+    _startImageCollectionView.hidden = NO;
+    
+    [self dismissViewControllerAnimated:YES completion:nil];
+    
+//    NSMutableArray *images = [NSMutableArray arrayWithCapacity:[info count]];
+    for (NSDictionary *dict in info) {
+        if ([dict objectForKey:UIImagePickerControllerMediaType] == ALAssetTypePhoto)
+        {
+            UIImage *originalImage = [dict objectForKey:UIImagePickerControllerOriginalImage];
+            if (originalImage)
+            {
+                UIImage* image= [UIImage fixOrientation:originalImage];
+                NSURL *imageUrl = [dict objectForKey:UIImagePickerControllerReferenceURL];
+                image.assetUrl = imageUrl.absoluteString;
+//                [self.haveImages addObject:image];
+                if (![self isAddedImage:image])
+                {
+                    [self.haveImages insertObject:image atIndex:0];
+                }
+                
+            } else {
+                NSLog(@"UIImagePickerControllerReferenceURL = %@", dict);
+            }
+        } else {
+            NSLog(@"Uknown asset type");
+        }
+    }
+    
+    if (self.haveImages.count > 1) {
+        [_myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+        _myButton2.enabled = YES;
+    }
+
+    [_startImageCollectionView reloadData];
+}
+
+- (BOOL)isAddedImage:(UIImage *)image
+{
+    NSString *newAssetUrl = image.assetUrl;
+    if (newAssetUrl.length <= 0) return NO;
+    for (UIImage *addedImage in self.haveImages)
+    {
+        NSString *oldAssetUrl = addedImage.assetUrl;
+        if (oldAssetUrl.length > 0)
+        {
+            if ([oldAssetUrl isEqualToString:newAssetUrl])
+            {
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation
+{
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+        return YES;
+    } else {
+        return toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown;
+    }
+}
+
+- (void)elcImagePickerControllerDidCancel:(ELCImagePickerController *)picker
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark - UIImagePickerControllerDelegate & UINavigationControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary<NSString *,id> *)info
+{
+    _startImageCollectionView.hidden = NO;
+    
+    UIImage *optionImage = [UIImage fixOrientation:[info objectForKey:@"UIImagePickerControllerEditedImage"]];
+    optionImage.isSelected = YES;
+    if (_haveImages.count == 7)
+    {
+//        [_haveImages removeLastObject];
+        [_haveImages insertObject:optionImage atIndex:0];
+        _isOptionAllImage = YES;
+    }
+    else
+    {
+        [_haveImages insertObject:optionImage atIndex:0];
+        _isOptionAllImage = NO;
+    }
+    
+    [picker dismissViewControllerAnimated:YES completion:nil];
+    
+    if (self.haveImages.count > 1) {
+        [_myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+        _myButton2.enabled = YES;
+    }
+    
+    [_startImageCollectionView reloadData];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
+{
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark - UICollectionViewDataSource & UICollectionViewDelegate
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+{
+    if (self.haveImages.count == 7) {
+        return self.haveImages.count - 1;
+    }
+    return self.haveImages.count;
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    StartImageEditCollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"StartImageEditCollectionViewCell" forIndexPath:indexPath];
+    
+    if (indexPath.row == _haveImages.count - 1 && !_isOptionAllImage)
+    {
+        cell.imageEditImageView.contentMode = UIViewContentModeScaleAspectFit;
+        cell.deleteBtn.hidden = YES;
+    }
+    else
+    {
+        cell.imageEditImageView.contentMode = UIViewContentModeScaleAspectFill;
+        cell.deleteBtn.hidden = NO;
+        cell.deleteBtn.tag = indexPath.row;
+        [cell.deleteBtn addTarget:self action:@selector(deleteBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        
+    }
+    cell.imageEditImageView.image = _haveImages[indexPath.row];
+    return cell;
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (!_isOptionAllImage && indexPath.row == _haveImages.count-1)
+    {
+        PSActionSheet *actionSheet = [[PSActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍摄照片",@"选择照片",nil];
+        actionSheet.tag = 20000;
+        [actionSheet showInView:self.view];
+    }else{
+        // 查看图片 //删除功能
+        MWPhotoBrowser *browser = [[MWPhotoBrowser alloc] initWithDelegate:self];
+        
+        // Set options
+        browser.displayActionButton = NO;
+        browser.displayNavArrows = YES;
+        browser.displaySelectionButtons = NO;
+        browser.zoomPhotosToFill = YES;
+        browser.enableGrid = NO;
+        browser.startOnGrid = NO;
+        browser.autoPlayOnAppear = NO;
+
+        // Manipulate
+        [browser showNextPhotoAnimated:YES];
+        [browser showPreviousPhotoAnimated:YES];
+        // Present
+        BaseNavigationController *nc = [[BaseNavigationController alloc] initWithRootViewController:browser];
+        nc.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+        [self presentViewController:nc animated:YES completion:nil];
+    }
+}
+
+//  删除选中图片
+- (void)deleteBtnClick:(UIButton *)sender
+{
+    [_haveImages removeObjectAtIndex:sender.tag];
+    
+    if (_imageUrlArr) {
+        [_imageUrlArr removeObjectAtIndex:sender.tag];
+    }
+    
+    if (_haveImages.count == 1 && IsStrEmpty(_startTitleTextField.text) && IsStrEmpty(_introductTextView.text)) {
+        _myButton2.enabled = NO;
+        [_myButton2 setTintColor:[UIColor colorWithHexString:@"#AAAAAA"]];
+    }
+    
+    [_startImageCollectionView reloadData];
+}
+
+
+#pragma mark  录音相关点击
+- (void)Actiondo
+{
+    if (_audioView.audioBtn.tag == 2) {
+        [_audioView.audioBtn setImage:[UIImage imageNamed:@"begin_vidio"] forState:UIControlStateNormal];
+        _audioView.audioBtn.tag = 1;
+        
+        self.beginAnimation = NO;
+        
+        [[EMCDDeviceManager sharedInstance] asyncStopRecordingWithCompletion:^(NSString *recordPath, NSInteger aDuration, NSError *error) {
+            if (!error) {
+                [_timer invalidate];
+                _audioPath = recordPath;
+                UIAlertView *audioShow = [[UIAlertView alloc]initWithTitle:nil message:@"阿么要上传咯" delegate:self cancelButtonTitle:@"我再改改" otherButtonTitles:@"听从阿么", nil];
+                audioShow.tag = 10000;
+                [audioShow show];
+            }
+            else {
+                [_timer invalidate];
+                _audioPath = nil;
+                [MBProgressHUD showMessag:@"亲，你的录音时间太短了。。" toView:self.view];
+            }
+        }];
+    }else{
+        [_audioView removeFromSuperview];
+    }
+    
+    
+}
+
+#pragma mark - UIAlertViewDelegate
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (alertView.tag == 40000) {
+        if (buttonIndex == 1) {
+            [self.navigationController popViewControllerAnimated:YES];
+        }
+    }
+}
+
+#pragma mark - MWPhotoBrowserDelegate
+- (NSUInteger)numberOfPhotosInPhotoBrowser:(MWPhotoBrowser *)photoBrowser
+{
+    return self.haveImages.count-1;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser photoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo = [MWPhoto photoWithImage:_haveImages[index]];
+    return photo;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser thumbPhotoAtIndex:(NSUInteger)index
+{
+    UIImage *image = _haveImages[index];
+    image.isSelected = YES;
+    MWPhoto *photo = [MWPhoto photoWithImage:_haveImages[index]];
+    return photo;
+}
+
+- (void)photoBrowserDidFinishModalPresentation:(MWPhotoBrowser *)photoBrowser
+{
+    [photoBrowser dismissViewControllerAnimated:YES completion:nil];
+}
+
+#pragma mark  UIScrollViewDelegate
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+{
+    [self.view endEditing:YES];
+}
+
+//  键盘return键
+- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text{
+    if ([text isEqualToString:@"\n"]){
+        [textView resignFirstResponder];
+        return NO;
+    }
+    
+    return YES;
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    
+    [textField resignFirstResponder];
+    return YES;
+}
+
+-(int)convertToInt:(NSString*)strtemp {
+    
+    int strlength = 0;
+    char* p = (char*)[strtemp cStringUsingEncoding:NSUnicodeStringEncoding];
+    for (int i=0 ; i<[strtemp lengthOfBytesUsingEncoding:NSUnicodeStringEncoding] ;i++) {
+        if (*p) {
+            p++;
+            strlength++;
+        }
+        else {
+            p++;
+        }
+    }
+    return strlength;
+}
+
+- (void)uploadPhoto{
+    [UPYUNConfig sharedInstance].DEFAULT_BUCKET = @"ndzphoto";
+    [UPYUNConfig sharedInstance].DEFAULT_PASSCODE = @"T+uMJhbKzocOvPRzLWs2DlqNJOI=";
+    __block UpYun *uy = [[UpYun alloc] init];
+    
+    if (_haveImages.count == 1) {
+        [self draftUpload];
+    }else{
+        for (int i = 0; i < _haveImages.count - 1; i ++) {
+            dispatch_queue_t urls_queue = dispatch_queue_create("app.mochoujun.com", NULL);
+            dispatch_async(urls_queue, ^{
+                uy.successBlocker = ^(NSURLResponse *response, id responseData) {
+                    NSDictionary *dic = (NSDictionary *)responseData;
+                    
+                    if (_haveImages.count - 1 == 1) {
+                        NSString *imageUrl = [NSString stringWithFormat:@"%@%@", @"http://img.niuduz.com/", dic[@"url"]];
+                        [self.imageUrlArr addObject:imageUrl];
+                        [self draftUpload];
+                    }else{
+                        NSString *imageUrl = [NSString stringWithFormat:@"%@%@", @"http://img.niuduz.com/", dic[@"url"]];
+                        [self.imageUrlArr addObject:imageUrl];
+                        if (self.imageUrlArr.count == _haveImages.count - 1){
+                            [self draftUpload];
+                        }
+                    }
+                };
+                uy.failBlocker = ^(NSError * error) {
+                    NSString *message = [error.userInfo objectForKey:@"message"];
+                    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"message" message:message delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                    [alert show];
+                    NSLog(@"error %@", message);
+                };
+                uy.progressBlocker = ^(CGFloat percent, int64_t requestDidSendBytes) {
+                };
+                NSString *imageKey = [NSString stringWithFormat:@"image%d.jpg",i];
+                [uy uploadImage:_haveImages[i] savekey:imageKey];
+            });
+        }
+    }
+}
+
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

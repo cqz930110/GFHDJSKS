@@ -1,0 +1,166 @@
+//
+//  AddProjectDetailsViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/8.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "AddProjectDetailsViewController.h"
+#import "PSActionSheet.h"
+#import "UIImage-Extensions.h"
+#import "UpYun.h"
+#import "SeeProjectDetailsViewController.h"
+
+@interface AddProjectDetailsViewController ()<UITextViewDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate,UIActionSheetDelegate>
+@property (nonatomic , strong) UIImagePickerController *imagePicerController;
+@property (nonatomic,strong)NSString *imageUrl;
+@end
+
+@implementation AddProjectDetailsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"添加项目详情";
+    [self setupBarInfo];
+}
+
+- (void)setupBarInfo
+{
+    [self setupBarButtomItemWithTitle:@"保存" target:self action:@selector(saveBtnClick) leftOrRight:NO];
+    [self setupBarButtomItemWithTitle:@" 取消" target:self action:@selector(backBtnClick) leftOrRight:YES];
+}
+//   取消
+- (void)backBtnClick
+{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)saveBtnClick
+{
+    if (_addProjectTextView.text.length < 10) {
+        [MBProgressHUD showMessag:@"项目介绍过于简短,请输入至少10个字" toView:self.view];
+        return;
+    }
+    if (!_addProjectImageView.image) {
+        [MBProgressHUD showMessag:@"还没有上传照片" toView:self.view];
+        return;
+    }
+    [self uploadPhoto];
+}
+
+- (void)saveProjectClick
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"CrowdFund/AddContent" parameters:@{@"CrowdFundId":@(_projectId),@"Content":_addProjectTextView.text,@"Images":@""} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:msg];
+        }else{
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+}
+
+//  上传照片
+- (IBAction)uploadImageBtnClick:(id)sender {
+    PSActionSheet *actionSheet = [[PSActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍摄照片",@"选择照片",nil];
+    [actionSheet showInView:self.view];
+}
+- (IBAction)seeProjectDetailsBtnClick:(id)sender {
+    SeeProjectDetailsViewController *seeProjectDetailsVC = [SeeProjectDetailsViewController new];
+    seeProjectDetailsVC.contentStr = _projectContentStr;
+    [self.navigationController pushViewController:seeProjectDetailsVC animated:YES];
+}
+
+//   TextViewDelegate
+- (void)textViewDidChange:(UITextView *)textView
+{
+    if (IsStrEmpty(textView.text)) {
+        _addProjectLab.hidden = NO;
+    }else{
+        _addProjectLab.hidden = YES;
+    }
+}
+
+- (UIImagePickerController *)imagePicerController
+{
+    if (!_imagePicerController)
+    {
+        _imagePicerController = [[UIImagePickerController alloc]init];
+        _imagePicerController.navigationBar.tintColor = [UIColor colorWithHexString:@"#2B2B2B"];
+        _imagePicerController.navigationBar.barTintColor = NaviColor;
+        [_imagePicerController.navigationBar setTitleTextAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:19.0f],NSForegroundColorAttributeName:[UIColor colorWithHexString:@"#2B2B2B"]}];
+        _imagePicerController.delegate = self;
+        _imagePicerController.allowsEditing = YES;
+    }
+    return _imagePicerController;
+}
+
+#pragma mark - UIActionSheetDelegate
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (buttonIndex == 0)
+    {
+        // 判断是否能拍照
+        if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera])
+        {
+            self.imagePicerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+            self.imagePicerController.showsCameraControls = YES;//takePicture
+            [self presentViewController:self.imagePicerController animated:YES completion:nil];
+        }
+        else
+        {
+            ULog(@"设备不支持");
+        }
+    }else if (buttonIndex == 1)
+    {
+        // 相册
+        self.imagePicerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+        [self presentViewController:self.imagePicerController animated:YES completion:nil];
+    }
+}
+
+#pragma mark 选取图片后的回调
+-(void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+{
+    _addProjectImageBtn.hidden = YES;
+    UIImage *originalImage = [info objectForKey:UIImagePickerControllerOriginalImage];
+    UIImage* image= [UIImage fixOrientation:originalImage];
+    _addProjectImageView.image = image;
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)uploadPhoto{
+    [UPYUNConfig sharedInstance].DEFAULT_BUCKET = @"ndzphoto";
+    [UPYUNConfig sharedInstance].DEFAULT_PASSCODE = @"T+uMJhbKzocOvPRzLWs2DlqNJOI=";
+    __block UpYun *uy = [[UpYun alloc] init];
+    
+    dispatch_queue_t urls_queue = dispatch_queue_create("app.mochoujun.com", NULL);
+    dispatch_async(urls_queue, ^{
+        uy.successBlocker = ^(NSURLResponse *response, id responseData) {
+            NSDictionary *dic = (NSDictionary *)responseData;
+            
+            _imageUrl = [NSString stringWithFormat:@"%@%@", @"http://img.niuduz.com/", dic[@"url"]];
+            [self saveProjectClick];
+        };
+        uy.failBlocker = ^(NSError * error) {
+            NSString *message = [error.userInfo objectForKey:@"message"];
+            UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"message" message:message delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+            [alert show];
+            NSLog(@"error %@", message);
+        };
+        uy.progressBlocker = ^(CGFloat percent, int64_t requestDidSendBytes) {
+        };
+        [uy uploadImage:_addProjectImageView.image savekey:@"addProjectImage.jpg"];
+    });
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

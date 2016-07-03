@@ -1,0 +1,128 @@
+//
+//  ComplaintViewController.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/4.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "ComplaintViewController.h"
+#import "IQKeyboardManager.h"
+#import "ComplaintTableViewCell.h"
+
+@interface ComplaintViewController ()<UITableViewDataSource,UITableViewDelegate>
+@property (weak, nonatomic) IBOutlet UITextView *introduceTextView;
+@property (weak, nonatomic) IBOutlet UITableView *complaintTableView;
+
+@property (nonatomic,strong)NSString *typeTitleStr;
+@end
+
+@implementation ComplaintViewController
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"举报";
+    [self backBarItem];
+    [self setupBarButtomItemWithTitle:@"发送" target:self action:@selector(introduceBtnClick) leftOrRight:NO];
+    _introduceTextView.text = @"详细的说明可以帮助我们更快的处理您的举报";
+    _introduceTextView.textColor = BlackDDDDDD;
+    
+    [_complaintTableView registerNib:[UINib nibWithNibName:@"ComplaintTableViewCell" bundle:nil] forCellReuseIdentifier:@"ComplaintTableViewCell"];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [IQKeyboardManager sharedManager].enable = NO;
+    [super viewWillAppear:animated];
+    [self.introduceTextView resignFirstResponder];
+}
+
+- (void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    [IQKeyboardManager sharedManager].enable = YES;
+}
+
+#pragma mark - UITextFieldDelegate
+- (BOOL)textViewShouldBeginEditing:(UITextView *)textView
+{
+    textView.text = @"";
+    textView.textColor = Black737373;
+    return YES;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 4;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 44;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"ComplaintTableViewCell";
+    ComplaintTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[ComplaintTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    
+    if (indexPath.row == 0) {
+        cell.complaintTitleLab.text = @"色情低俗";
+    }else if (indexPath.row == 1){
+        cell.complaintTitleLab.text = @"政治敏感";
+    }else if (indexPath.row == 2){
+        cell.complaintTitleLab.text = @"欺诈骗钱";
+    }else if (indexPath.row == 3){
+        cell.complaintTitleLab.text = @"违法(暴力恐怖、违禁品等)";
+    }
+    
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row == 0) {
+        _typeTitleStr = @"色情低俗";
+    }else if (indexPath.row == 1){
+        _typeTitleStr = @"政治敏感";
+    }else if (indexPath.row == 2){
+        _typeTitleStr = @"欺诈骗钱";
+    }else if (indexPath.row == 3){
+        _typeTitleStr = @"违法(暴力恐怖、违禁品等)";
+    }
+}
+
+#pragma mark - Action
+- (void)introduceBtnClick
+{
+    if (IsStrEmpty(_typeTitleStr)) {
+        [MBProgressHUD showMessag:@"请选择举报类型" toView:self.view];
+        return;
+    }
+    [_introduceTextView resignFirstResponder];
+    if (![_introduceTextView.text isEqualToString:@"详细的说明可以帮助我们更快的处理您的举报"] || !IsStrEmpty(_introduceTextView.text))
+    {
+        _typeTitleStr = [NSString stringWithFormat:@"%@#%@",_typeTitleStr,_introduceTextView.text];
+    }
+    [MBProgressHUD showStatus:nil toView:self.view];
+    //改成了UserName
+    [self.httpUtil requestDic4MethodName:@"Report/Add" parameters:@{@"ReportType":_complaintType,@"Id":_username,@"Reason":_typeTitleStr} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"你的举报阿么收到啦"];
+            [self.navigationController performSelector:@selector(popViewControllerAnimated:) withObject:[NSNumber numberWithBool:YES] afterDelay:1.5];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+    
+}
+
+@end

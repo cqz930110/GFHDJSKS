@@ -1,0 +1,151 @@
+//
+//  ProjectTableViewCell.m
+//  TipCtrl
+//
+//  Created by liuyong on 15/11/27.
+//  Copyright © 2015年 hesong. All rights reserved.
+//
+
+#import "ProjectTableViewCell.h"
+#import "ProjectCollectionViewCell.h"
+#import "HomeViewController.h"
+#import <MWPhotoBrowser.h>
+#import "BaseNavigationController.h"
+#import "WeiCrowdfundingViewController.h"
+#import "Project.h"
+#import "CrowdFundingObj.h"
+#import "WeiProjectDetailsViewController.h"
+#import <UIButton+WebCache.h>
+#import "PageTableController.h"
+@interface ProjectTableViewCell ()<UICollectionViewDataSource,UICollectionViewDelegate,MWPhotoBrowserDelegate>
+@property (nonatomic,strong)NSArray *imageArr;
+@end
+@implementation ProjectTableViewCell
+
+- (void)awakeFromNib
+{
+    _userIconBtn.layer.cornerRadius = 17.5f;
+    _userIconBtn.layer.masksToBounds = YES;
+    _projectCollectionView.delegate = self;
+    _projectCollectionView.dataSource = self;
+    [_projectCollectionView registerNib:[UINib nibWithNibName:@"ProjectCollectionViewCell" bundle:nil] forCellWithReuseIdentifier:@"ProjectCollectionViewCell"];
+}
+
+#pragma mark  click  user
+- (IBAction)userIconClick:(id)sender {
+    if ([self.delegate respondsToSelector:@selector(projectTableViewCell:supportProject:)]) {
+        [self.delegate projectTableViewCell:self supportProject:nil];
+    }
+}
+
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+{
+//    NSLog(@"%zd",_imageArr.count > 3?3:_imageArr.count);
+    return _imageArr.count > 4?4:_imageArr.count;
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    ProjectCollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"ProjectCollectionViewCell" forIndexPath:indexPath];
+    [cell sizeToFit];
+    NSString *imageStr = [NSString stringWithFormat:@"%@%@",_imageArr[indexPath.row],@"!240"];
+    [NetWorkingUtil setImage:cell.imageView url:imageStr defaultIconName:@"home_默认"];
+    return cell;
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+//    // 查看图片 //删除功能
+//    MWPhotoBrowser *browser = [[MWPhotoBrowser alloc] initWithDelegate:self];
+//    
+//    // Set options
+//    browser.displayActionButton = NO;
+//    browser.displayNavArrows = YES;
+//    browser.displaySelectionButtons = NO;
+//    browser.zoomPhotosToFill = YES;
+//    browser.enableGrid = NO;
+//    browser.startOnGrid = NO;
+//    browser.autoPlayOnAppear = NO;
+//    [browser setCurrentPhotoIndex:indexPath.row];
+//    // Manipulate
+//    [browser showNextPhotoAnimated:YES];
+//    [browser showPreviousPhotoAnimated:YES];
+//    
+//    // Present
+//    BaseNavigationController *nc = [[BaseNavigationController alloc] initWithRootViewController:browser];
+//    nc.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
+//    UIViewController *vc =  (UIViewController *)self.delegate;
+//    if ([vc isKindOfClass:[HomeViewController class]])
+//    {
+//        HomeViewController *home = (HomeViewController*)vc;
+//        home.isUpdate = YES;
+//    }
+//    [vc presentViewController:nc animated:NO completion:nil];
+}
+
+#pragma mark - MWPhotoBrowserDelegate
+- (NSUInteger)numberOfPhotosInPhotoBrowser:(MWPhotoBrowser *)photoBrowser
+{
+    NSInteger number = _imageArr.count;
+    return number;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser photoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo =  [MWPhoto photoWithURL:[NSURL URLWithString:_imageArr[index]]]; //[MWPhoto photoWithImage:_imageArr[index]];
+    
+    return photo;
+}
+
+- (id <MWPhoto>)photoBrowser:(MWPhotoBrowser *)photoBrowser thumbPhotoAtIndex:(NSUInteger)index
+{
+    MWPhoto *photo = [MWPhoto photoWithURL:[NSURL URLWithString:_imageArr[index]]];
+    return photo;
+}
+
+- (void)photoBrowserDidFinishModalPresentation:(MWPhotoBrowser *)photoBrowser
+{
+    [photoBrowser dismissViewControllerAnimated:NO completion:nil];
+}
+
+#pragma mark - Set & Get
+- (void)setProject:(Project *)project
+{
+    _project = project;
+    _imageArr = _project.images;
+    [_projectCollectionView reloadData];
+    
+    [_userIconBtn sd_setImageWithURL:[NSURL URLWithString:_project.avatar]  forState:UIControlStateNormal placeholderImage:[UIImage imageNamed:@"home_默认"]];
+    _userNameLab.text = _project.nickName;
+    _projectTimeLab.text = _project.createDate;
+    _projectContentLab.text = _project.name;
+    _profileContentLab.text = _project.profile;
+    [_chatGroupBtn setTitle:[NSString stringWithFormat:@"%d",_project.supportCount] forState:UIControlStateNormal];
+    [_chatFrientBtn setTitle:[NSString stringWithFormat:@"%d",_project.commentedCount] forState:UIControlStateNormal];
+    _targetRaiseLab.text = [NSString stringWithFormat:@"已筹¥%@",_project.raisedAmount];
+    _supportNumberLab.text = [NSString stringWithFormat:@"%d 次支持",_project.supportCount];
+    _surplusLab.text = [NSString stringWithFormat:@"%@",_project.showStatus];
+//    _surplusLab.text = @"剩余:30天";
+}
+//
+- (void)setCrowdFundingObj:(CrowdFundingObj *)crowdFundingObj
+{
+    _crowdFundingObj = crowdFundingObj;
+    _imageArr = [_crowdFundingObj.images componentsSeparatedByString:@","];
+    [_projectCollectionView reloadData];
+
+    [_userIconBtn sd_setImageWithURL:[NSURL URLWithString:_crowdFundingObj.avatar]  forState:UIControlStateNormal placeholderImage:[UIImage imageNamed:@"home_默认"]];
+    
+    _userNameLab.text = _crowdFundingObj.nickName;
+    _projectTimeLab.text = _crowdFundingObj.createDate;
+    _projectContentLab.text = _crowdFundingObj.name;
+    [_chatGroupBtn setTitle:[NSString stringWithFormat:@"%d",_crowdFundingObj.supportedCount] forState:UIControlStateNormal];
+    [_chatFrientBtn setTitle:[NSString stringWithFormat:@"%d",_crowdFundingObj.commentedCount] forState:UIControlStateNormal];
+    _profileContentLab.text = _crowdFundingObj.profile;
+    _targetRaiseLab.text = [NSString stringWithFormat:@"¥ %.2f／%d",_crowdFundingObj.raisedAmount,_crowdFundingObj.targetAmount];
+    _supportNumberLab.text = [NSString stringWithFormat:@"%d 次支持",_crowdFundingObj.supportedCount];
+    _surplusLab.text = [NSString stringWithFormat:@"%@",_crowdFundingObj.showStatus];
+//    _surplusLab.text = @"剩余:30天";
+}
+
+@end

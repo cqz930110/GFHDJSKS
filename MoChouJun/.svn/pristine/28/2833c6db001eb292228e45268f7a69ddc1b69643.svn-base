@@ -1,0 +1,159 @@
+//
+//  SuccessProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/1.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "SuccessProjectViewController.h"
+#import "WeiProjectDetailsViewController.h"
+#import "AddProjectReturnViewController.h"
+#import "AddProjectDetailsViewController.h"
+
+@interface SuccessProjectViewController ()
+@property (strong, nonatomic) IBOutletCollection(UIButton) NSArray *threeShareButtons;
+@property (weak, nonatomic) IBOutlet UIButton *addReturnBtn;
+@property (weak, nonatomic) IBOutlet UIButton *addProjectDetailsBtn;
+
+@end
+
+@implementation SuccessProjectViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    if (IsStrEmpty(_myTitle)) {
+        self.title = @"成功发起项目";
+    }else{
+        self.title = _myTitle;
+    }
+    
+    if (!IsStrEmpty(_showStr)) {
+        _showLab.text = _showStr;
+    }
+    
+    if (!IsStrEmpty(_editType)) {
+        if (_repayCount != 0) {
+            _addReturnBtn.hidden = NO;
+        }else{
+            _addReturnBtn.hidden = YES;
+        }
+        
+        _addProjectDetailsBtn.hidden = NO;
+    }
+    
+    self.view.backgroundColor = [UIColor whiteColor];
+    [self setNaviInfo];
+}
+
+- (void)setNaviInfo
+{
+    [self setupBarButtomItemWithImageName:nil highLightImageName:nil selectedImageName:nil target:self action:nil leftOrRight:YES];
+    [self setupBarButtomItemWithTitle:@"查看" target:self action:@selector(lookProject) leftOrRight:NO];
+}
+
+- (void)lookProject
+{
+    if ([_type isEqual:@"start"]) {
+        WeiProjectDetailsViewController *weiProjectVC = [WeiProjectDetailsViewController new];
+        weiProjectVC.type = @"发布";
+        weiProjectVC.projectId = (int)_projectId;
+        [self.navigationController pushViewController:weiProjectVC animated:YES];
+    }else{
+        NSArray *childViewControllers = self.navigationController.childViewControllers;
+        [self.navigationController popToViewController:[childViewControllers objectAtIndex:1] animated:YES];
+    }
+    
+}
+- (IBAction)shareAction:(UIButton *)sender {
+    
+    WeiProjectDetailsViewController *weiProjectVC = [WeiProjectDetailsViewController new];
+    weiProjectVC.projectId = (int)_projectId;
+    weiProjectVC.type = @"发布";
+    [self.navigationController pushViewController:weiProjectVC animated:YES];
+    switch (sender.tag)
+    {
+        case 0:
+            [self clikeShareType:UMShareToQQ];
+            break;
+        case 1:
+            [self clikeShareType:UMShareToQzone];
+            break;
+        case 2:
+            [self clikeShareType:UMShareToWechatSession];
+            break;
+        case 3:
+            [self clikeShareType:UMShareToWechatTimeline];
+            break;
+        case 4:
+            [self clikeShareType:UMShareToSina];
+            break;
+    }
+}
+- (IBAction)copyLianjieAction:(id)sender {
+    UIPasteboard *pab = [UIPasteboard generalPasteboard];
+    
+    NSString *string = [NSString stringWithFormat:@"http://www.mochoujun.com/app#/crowdfund/%ld",(long)_projectId];
+    
+    [pab setString:string];
+    
+    if (pab == nil) {
+        [MBProgressHUD showSuccess:@"复制链接失败" toView:nil];
+    }else{
+        [MBProgressHUD showSuccess:@"复制链接成功" toView:nil];
+    }
+}
+
+- (void)clikeShareType:(NSString *)shareType
+{
+    NSString *sharePushUrl = [NSString stringWithFormat:@"http://www.mochoujun.com/app#/crowdfund/%ld",(long)_projectId];
+    NSArray *array = _projectArr;
+    NSString *title = [NSString stringWithFormat:@"%@-陌筹君",_projectStr];
+    
+    [ShareUtil postShareWithShareType:shareType title:title content:@"www.mochoujun.com/app" urlResource:array[0] clickPushUrl:sharePushUrl presentedController:self completion:^(UMSocialResponseEntity *response) {
+        if (response.responseCode == UMSResponseCodeSuccess)
+        {
+            [MBProgressHUD showSuccess:@"你成功把阿么推出江湖啦" toView:nil];
+        }
+        else
+        {
+            [MBProgressHUD showError:@"没有把阿么推荐出去哦" toView:nil];
+        }
+        
+    }];
+}
+//   添加回报
+- (IBAction)addReturnClick:(id)sender {
+    AddProjectReturnViewController *addProjectReturnVC = [AddProjectReturnViewController new];
+    addProjectReturnVC.addType = @"AddReturn";
+    addProjectReturnVC.editType = @"发起";
+    addProjectReturnVC.crowdFundId = (int)_projectId;
+    [self.navigationController pushViewController:addProjectReturnVC animated:YES];
+}
+
+//   添加详情
+- (IBAction)addProjectDetailsClick:(id)sender {
+    AddProjectDetailsViewController *addProjectDetailsVC = [AddProjectDetailsViewController new];
+    addProjectDetailsVC.projectId = (int)_projectId;
+    addProjectDetailsVC.projectContentStr = _contentStr;
+    addProjectDetailsVC.uploadCount = _uploadCount;
+    addProjectDetailsVC.editType = @"发起";
+    [self.navigationController pushViewController:addProjectDetailsVC animated:YES];
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+/*
+#pragma mark - Navigation
+
+// In a storyboard-based application, you will often want to do a little preparation before navigation
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
+    // Get the new view controller using [segue destinationViewController].
+    // Pass the selected object to the new view controller.
+}
+*/
+
+@end

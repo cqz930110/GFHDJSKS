@@ -1,0 +1,28 @@
+//
+//  ProjectReturnViewController.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/7.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "BaseViewController.h"
+
+@class ProjectReturnViewController;
+@class ProjectReturnTableViewCell;
+@protocol ProjectReturnViewControllerDelegate <NSObject>
+
+- (void)returnSavedReturnUserInfo:(NSMutableArray *)userArr;
+@end
+@interface ProjectReturnViewController : BaseViewController
+
+@property (weak, nonatomic) id<ProjectReturnViewControllerDelegate> delegate;
+
+@property (nonatomic,strong)NSMutableArray *detailArr;
+
+- (void)projectReturnTableViewCellDeleteProjectReturn:(ProjectReturnTableViewCell *)cell;
+
+- (void)projectReturnTableViewCellEditProjectReturn:(ProjectReturnTableViewCell *)cell;
+
+- (void)projectReturnTableViewCellMoreProjectReturn:(ProjectReturnTableViewCell *)cell;
+@end

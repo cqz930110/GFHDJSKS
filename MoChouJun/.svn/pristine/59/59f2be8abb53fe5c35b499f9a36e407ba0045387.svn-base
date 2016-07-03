@@ -1,0 +1,195 @@
+//
+//  MyDraftViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/20.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "MyDraftViewController.h"
+#import "MyDraftTableViewCell.h"
+#import "StartFirstProjectViewController.h"
+
+@interface MyDraftViewController ()<UITableViewDataSource,UITableViewDelegate,UIAlertViewDelegate>
+@property (weak, nonatomic) IBOutlet UITableView *myDraftTableView;
+
+@property (nonatomic,strong)NSMutableArray *myDraftMutableArr;
+@property (nonatomic,assign)NSInteger pageIndex;
+@end
+
+@implementation MyDraftViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    _pageIndex = 1;
+    [self backBarItem];
+    self.title = @"我的草稿";
+    
+    [self setTableViewInfo];
+    
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self myDraftDateInfo];
+}
+
+- (void)setTableViewInfo
+{
+    [_myDraftTableView registerNib:[UINib nibWithNibName:@"MyDraftTableViewCell" bundle:nil] forCellReuseIdentifier:@"MyDraftTableViewCell"];
+    [self setupRefreshWithTableView:_myDraftTableView];
+    _myDraftTableView.tableFooterView = [UIView new];
+}
+
+- (void)myDraftDateInfo
+{
+    [self.httpUtil requestDic4MethodName:@"Draft/List" parameters:@{@"PageIndex":@(_pageIndex)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if ( status == 1 || status == 2) {
+            [_myDraftTableView.mj_header endRefreshing];
+            [_myDraftTableView.mj_footer endRefreshing];
+            if (_pageIndex == 1) {
+                [_myDraftMutableArr removeAllObjects];
+            }
+            [MBProgressHUD dismissHUDForView:self.view];
+            NSArray *arr = [dic objectForKey:@"DataSet"];
+            [self.myDraftMutableArr addObjectsFromArray:arr];
+            
+            if ([[dic valueForKey:@"PageCount"] integerValue] == [[dic valueForKey:@"PageIndex"] integerValue])
+            {
+                [_myDraftTableView.mj_footer endRefreshingWithNoMoreData];
+            }
+            
+            [_myDraftTableView reloadData];
+            
+            if (_myDraftMutableArr.count == 0) {
+                self.hideNoMsg = NO;
+            }else{
+                self.hideNoMsg = YES;
+            }
+        }else{
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return _myDraftMutableArr.count;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 160;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    return 0.000001;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 15;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"MyDraftTableViewCell";
+    MyDraftTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[MyDraftTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.myDraftDic = _myDraftMutableArr[indexPath.section];
+    
+    cell.myDraftEditBtn.tag = indexPath.section;
+    [cell.myDraftEditBtn addTarget:self action:@selector(myDraftEditBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    cell.myDraftDeleteBtn.tag = indexPath.section;
+    [cell.myDraftDeleteBtn addTarget:self action:@selector(myDraftDeleteBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    return cell;
+}
+
+//  编辑
+- (void)myDraftEditBtnClick:(UIButton *)sender
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    NSDictionary *dic = _myDraftMutableArr[sender.tag];
+    [self.httpUtil requestDic4MethodName:@"Draft/View" parameters:@{@"DraftId":[NSString stringWithFormat:@"%@",[dic objectForKey:@"DraftId"]]} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [MBProgressHUD dismissHUDForView:self.view];
+            NSLog(@"-----%@",dic);
+            StartFirstProjectViewController *startFirstVC = [StartFirstProjectViewController new];
+            startFirstVC.myDraftDic = dic;
+            [self.navigationController pushViewController:startFirstVC animated:YES];
+        }else{
+            [MBProgressHUD dismissHUDForView:self.view];
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+//  删除
+- (void)myDraftDeleteBtnClick:(UIButton *)sender
+{
+    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"确定要删除吗？" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+    alert.tag = sender.tag;
+    [alert show];
+}
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (buttonIndex == 1) {
+        [MBProgressHUD showStatus:nil toView:self.view];
+        NSDictionary *dic = _myDraftMutableArr[alertView.tag];
+        [self.httpUtil requestDic4MethodName:@"Draft/Delete" parameters:@{@"DraftId":@([[dic objectForKey:@"DraftId"] intValue])} result:^(NSDictionary *dic, int status, NSString *msg) {
+            if (status == 1 || status == 2) {
+                [MBProgressHUD dismissHUDForView:self.view];
+                [MBProgressHUD dismissHUDForView:self.view withSuccess:msg];
+                [_myDraftMutableArr removeObjectAtIndex:alertView.tag];
+                if (_myDraftMutableArr.count == 0) {
+                    self.hideNoMsg = NO;
+                }else{
+                    self.hideNoMsg = YES;
+                }
+                [_myDraftTableView reloadData];
+            }else{
+                [MBProgressHUD dismissHUDForView:self.view];
+                [MBProgressHUD dismissHUDForView:self.view withError:msg];
+            }
+        }];
+    }
+}
+
+- (void)headerRefreshloadData
+{
+    _pageIndex = 1;
+    [self myDraftDateInfo];
+}
+
+- (void)footerRefreshloadData
+{
+    if (_myDraftTableView.mj_footer.state != MJRefreshStateNoMoreData)
+    {
+        _pageIndex ++;
+        [self myDraftDateInfo];
+    }
+}
+
+- (NSMutableArray *)myDraftMutableArr
+{
+    if (!_myDraftMutableArr) {
+        _myDraftMutableArr = [NSMutableArray array];
+    }
+    return _myDraftMutableArr;
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

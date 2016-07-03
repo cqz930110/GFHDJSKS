@@ -1,0 +1,283 @@
+//
+//  GroupListsViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/14.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "GroupListsViewController.h"
+#import "ChatViewController.h"
+#import "RealtimeSearchUtil.h"
+#import "PSBarButtonItem.h"
+#import <MJRefresh.h>
+#import "NetWorkingUtil.h"
+#import "PSGroup.h"
+#import "NoMsgView.h"
+#import "PSBuddy.h"
+#import "SendCMDMessageUtil.h"
+#import "BaseTableViewCell.h"
+#import "GroupListsTableViewCell.h"
+
+@interface GroupListsViewController ()<UITableViewDataSource,UITableViewDelegate,IChatManagerDelegate>
+{
+    NetWorkingUtil *_httpUtil;
+    BOOL _isProjectGroup;
+}
+@property (weak, nonatomic) IBOutlet UITableView *groupListsTableView;
+@property (weak, nonatomic) IBOutlet UIButton *projectGroupBtn;
+@property (weak, nonatomic) IBOutlet UIButton *groupBtn;
+@property (weak, nonatomic) IBOutlet UIView *skipRedView;
+
+@property (strong, nonatomic) NSMutableArray *dataSource;
+@property (strong, nonatomic) NoMsgView *noDataView;
+@property (assign, nonatomic) int groupTypeId;//项目组为 1  普通的为0
+@end
+
+@implementation GroupListsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"群组列表";
+    [self backBarItem];
+    _groupTypeId = 1;
+    _httpUtil = [NetWorkingUtil netWorkingUtil];
+    [self setupTableView];
+    [[EaseMob sharedInstance].chatManager removeDelegate:self];
+    [[EaseMob sharedInstance].chatManager addDelegate:self delegateQueue:nil];
+    
+    [MBProgressHUD showStatus:nil toView:self.view];
+    
+    
+    [self headerRefreshloadData];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [_projectGroupBtn setTitleColor:[UIColor colorWithHexString:@"#181818"] forState:UIControlStateNormal];
+    [_groupBtn setTitleColor:[UIColor colorWithHexString:@"#AAAAAA"] forState:UIControlStateNormal];
+    _skipRedView.frame = CGRectMake(0, 43, SCREEN_WIDTH * 0.5, 1);
+    [self getGroupNumber];
+}
+
+- (void)setupTableView
+{
+    _groupListsTableView.tableFooterView = [[UIView alloc] init];
+    
+    [_groupListsTableView registerNib:[UINib nibWithNibName:@"GroupListsTableViewCell" bundle:nil] forCellReuseIdentifier:@"GroupListsTableViewCell"];
+    // 上下啦
+    [self setupHeaderRefresh:_groupListsTableView];
+}
+
+- (void)dealloc
+{
+    [[EaseMob sharedInstance].chatManager removeDelegate:self];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Refresh
+- (void)setupHeaderRefresh:(UITableView *)tableView
+{
+    MJRefreshNormalHeader *header = [MJRefreshNormalHeader headerWithRefreshingTarget:self refreshingAction:@selector(headerRefreshloadData)];
+    header.lastUpdatedTimeLabel.font = [UIFont systemFontOfSize:12];
+    header.stateLabel.font = [UIFont systemFontOfSize:12];
+    [header setTitle:@"拉拉阿么就有啦\(^o^)/~" forState:MJRefreshStateIdle];
+    [header setTitle:@"刷得好疼，快放开阿么 ::>_<:: " forState:MJRefreshStatePulling];
+    [header setTitle:@"阿么正在努力刷刷刷" forState:MJRefreshStateRefreshing];
+    tableView.mj_header = header;
+}
+
+- (void)headerRefreshloadData
+{
+    [self getGroupDate];
+}
+
+#pragma mark - Getter & Setter
+- (NoMsgView *)noDataView
+{
+    if (!_noDataView)
+    {
+        _noDataView = [[[NSBundle mainBundle] loadNibNamed:@"NoMsgView" owner:self options:nil] lastObject];
+        _noDataView.frame = CGRectMake(0, 44, SCREEN_WIDTH, 50);
+        
+        [self.view addSubview:_noDataView];;
+    }
+    return _noDataView;
+}
+
+- (NSMutableArray *)dataSource
+{
+    if (!_dataSource)
+    {
+        _dataSource = [NSMutableArray array];
+    }
+    return _dataSource;
+}
+
+//  项目群组点击
+- (IBAction)projectGroupBtnClick:(id)sender {
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [_projectGroupBtn setTitleColor:[UIColor colorWithHexString:@"#181818"] forState:UIControlStateNormal];
+    [_groupBtn setTitleColor:[UIColor colorWithHexString:@"#AAAAAA"] forState:UIControlStateNormal];
+    _skipRedView.frame = CGRectMake(0, 43, SCREEN_WIDTH * 0.5, 1);
+    
+    _groupTypeId = 1;
+    [_dataSource removeAllObjects];
+    [self getGroupDate];
+}
+
+//  群组点击
+- (IBAction)groupBtnClick:(id)sender {
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [_projectGroupBtn setTitleColor:[UIColor colorWithHexString:@"#AAAAAA"] forState:UIControlStateNormal];
+    [_groupBtn setTitleColor:[UIColor colorWithHexString:@"#181818"] forState:UIControlStateNormal];
+    _skipRedView.frame = CGRectMake(SCREEN_WIDTH * 0.5, 43, SCREEN_WIDTH * 0.5, 1);
+    
+    _groupTypeId = 0;
+    [_dataSource removeAllObjects];
+    [self getGroupDate];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 60;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"GroupListsTableViewCell";
+    GroupListsTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[GroupListsTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    PSGroup *group = [self.dataSource objectAtIndex:indexPath.row];
+    cell.group = group;
+    return cell;
+}
+
+- (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return UITableViewCellEditingStyleDelete;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    PSGroup *group = [self.dataSource objectAtIndex:indexPath.row];
+    NSString *groupId = group.easemobGroupId;
+    ChatViewController *chatController = [[ChatViewController alloc] initWithConversationChatter:groupId
+                                                                                conversationType:eConversationTypeGroupChat];
+    chatController.title = group.groupName;
+    chatController.isProjectChat = _isProjectGroup;
+    [self.navigationController pushViewController:chatController animated:YES];
+}
+
+#pragma mark - IChatManagerDelegate
+
+- (void)groupDidUpdateInfo:(EMGroup *)group error:(EMError *)error
+{
+    if (!error) {
+        [self reloadDataSource];
+    }
+}
+
+- (void)didUpdateGroupList:(NSArray *)allGroups error:(EMError *)error
+{
+    [self reloadDataSource];
+}
+
+- (void)reloadDataSource
+{
+    //Type   0聊天群     1项目群
+    [_httpUtil requestArr4MethodName:@"Group/List" parameters:@{@"PageIndex":@(1),@"PageSize":@(1000),@"Type":@(_groupType)} result:^(NSArray *arr, int status, NSString *msg)
+     {
+         [_groupListsTableView.mj_header endRefreshing];
+         if (status == 1)
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             [self.dataSource removeAllObjects];
+             [self.dataSource addObjectsFromArray:arr];
+             
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+         
+         [_groupListsTableView reloadData];
+         
+         if (self.dataSource.count == 0)
+         {
+             self.noDataView.hidden = NO;
+         }
+         else
+         {
+             self.noDataView.hidden = YES;
+         }
+         
+     } convertClassName:@"PSGroup" key:@"DataSet"];
+}
+
+- (void)getGroupDate
+{
+    //Type   0聊天群     1项目群
+    
+    [_httpUtil requestArr4MethodName:@"Group/List" parameters:@{@"PageIndex":@(1),@"PageSize":@(1000),@"Type":@(_groupTypeId)} result:^(NSArray *arr, int status, NSString *msg)
+     {
+         [_groupListsTableView.mj_header endRefreshing];
+         if (status == 1)
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             [self.dataSource removeAllObjects];
+             [self.dataSource addObjectsFromArray:arr];
+             
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+         
+         [_groupListsTableView reloadData];
+
+         if (self.dataSource.count == 0)
+         {
+             self.noDataView.hidden = NO;
+             
+         }
+         else
+         {
+             self.noDataView.hidden = YES;
+         }
+         
+     } convertClassName:@"PSGroup" key:@"DataSet"];
+}
+
+- (void)getGroupNumber
+{
+    [_httpUtil requestDic4MethodName:@"Group/GroupCount" parameters:nil result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2) {
+            [_projectGroupBtn setTitle:[NSString stringWithFormat:@"项目群组(%@)",[dic objectForKey:@"CrowdFundGroupCount"]] forState:UIControlStateNormal];
+            [_groupBtn setTitle:[NSString stringWithFormat:@"群聊组(%@)",[dic objectForKey:@"ChatGroupCount"]] forState:UIControlStateNormal];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

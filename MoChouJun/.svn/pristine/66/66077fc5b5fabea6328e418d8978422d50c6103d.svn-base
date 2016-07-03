@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="9531" systemVersion="14F1021" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="9529"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" rowHeight="50" id="KGk-i7-Jjw" customClass="PhoneContactCell">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="50"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="KGk-i7-Jjw" id="H2p-sc-9uM">
+                <rect key="frame" x="0.0" y="0.0" width="320" height="49"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="LgM-zn-ACE">
+                        <rect key="frame" x="10" y="7" width="35" height="35"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="35" id="ONL-tE-bm2"/>
+                            <constraint firstAttribute="width" constant="35" id="qA3-9l-bot"/>
+                        </constraints>
+                    </imageView>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" misplaced="YES" text="" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="tdn-D0-lhg">
+                        <rect key="frame" x="53" y="7" width="30" height="18"/>
+                        <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" misplaced="YES" text="" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Zk3-vm-bhW">
+                        <rect key="frame" x="53" y="30" width="72" height="14"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="14" id="xus-gN-Hum"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="13"/>
+                        <color key="textColor" white="0.33333333333333331" alpha="1" colorSpace="calibratedWhite"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <button hidden="YES" opaque="NO" tag="1" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ybC-4l-HJh">
+                        <rect key="frame" x="258" y="7" width="54" height="35"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="35" id="Wsl-fe-bDB"/>
+                            <constraint firstAttribute="width" constant="54" id="meO-mO-fAY"/>
+                        </constraints>
+                        <state key="normal" title="Button" image="addContact"/>
+                        <connections>
+                            <action selector="clickAction:" destination="KGk-i7-Jjw" eventType="touchUpInside" id="1ga-aL-Omp"/>
+                        </connections>
+                    </button>
+                    <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="DNQ-bz-552">
+                        <rect key="frame" x="258" y="7" width="54" height="35"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="35" id="Ahl-7y-1hn"/>
+                            <constraint firstAttribute="width" constant="54" id="epL-Pv-aSc"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                        <inset key="titleEdgeInsets" minX="-19" minY="0.0" maxX="0.0" maxY="-1"/>
+                        <inset key="imageEdgeInsets" minX="41" minY="0.0" maxX="0.0" maxY="0.0"/>
+                        <state key="normal" title="邀请" image="arrowLeft">
+                            <color key="titleColor" red="0.43137254901960786" green="0.63921568627450975" blue="0.89803921568627454" alpha="1" colorSpace="calibratedRGB"/>
+                        </state>
+                        <connections>
+                            <action selector="clickAction:" destination="KGk-i7-Jjw" eventType="touchUpInside" id="5MY-AQ-gsp"/>
+                        </connections>
+                    </button>
+                </subviews>
+                <constraints>
+                    <constraint firstAttribute="trailing" secondItem="DNQ-bz-552" secondAttribute="trailing" constant="8" id="656-io-PJx">
+                        <variation key="heightClass=regular-widthClass=compact" constant="0.0"/>
+                    </constraint>
+                    <constraint firstItem="tdn-D0-lhg" firstAttribute="leading" secondItem="LgM-zn-ACE" secondAttribute="trailing" constant="8" id="Aec-lI-u6T"/>
+                    <constraint firstItem="ybC-4l-HJh" firstAttribute="centerY" secondItem="H2p-sc-9uM" secondAttribute="centerY" id="Czs-Sg-sR6"/>
+                    <constraint firstItem="tdn-D0-lhg" firstAttribute="centerY" secondItem="LgM-zn-ACE" secondAttribute="centerY" constant="-9" id="EDU-2h-cHq"/>
+                    <constraint firstAttribute="trailing" secondItem="ybC-4l-HJh" secondAttribute="trailing" constant="8" id="Jpw-Jo-vDm">
+                        <variation key="heightClass=regular-widthClass=compact" constant="0.0"/>
+                    </constraint>
+                    <constraint firstItem="LgM-zn-ACE" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" constant="10" id="KSQ-pH-QP8"/>
+                    <constraint firstItem="LgM-zn-ACE" firstAttribute="centerY" secondItem="H2p-sc-9uM" secondAttribute="centerY" id="WkK-Xg-usw"/>
+                    <constraint firstItem="Zk3-vm-bhW" firstAttribute="leading" secondItem="tdn-D0-lhg" secondAttribute="leading" id="mYG-dM-yVE"/>
+                    <constraint firstItem="DNQ-bz-552" firstAttribute="centerY" secondItem="H2p-sc-9uM" secondAttribute="centerY" id="oQA-da-w5o"/>
+                    <constraint firstItem="Zk3-vm-bhW" firstAttribute="top" secondItem="tdn-D0-lhg" secondAttribute="bottom" constant="5" id="yZG-ZI-o9v"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="addButton" destination="ybC-4l-HJh" id="iWW-jz-pgE"/>
+                <outlet property="headerImage" destination="LgM-zn-ACE" id="8Dy-V3-uTt"/>
+                <outlet property="inviteButton" destination="DNQ-bz-552" id="cxE-wc-0UD"/>
+                <outlet property="nameLabel" destination="tdn-D0-lhg" id="zZL-Wb-LYh"/>
+                <outlet property="phoneNumLabel" destination="Zk3-vm-bhW" id="Ogz-j1-YKX"/>
+            </connections>
+            <point key="canvasLocation" x="237" y="244"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="addContact" width="51" height="16"/>
+        <image name="arrowLeft" width="8" height="13"/>
+    </resources>
+</document>

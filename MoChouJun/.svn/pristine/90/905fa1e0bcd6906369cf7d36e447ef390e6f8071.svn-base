@@ -1,0 +1,42 @@
+//
+//  ProjectDetailsObj.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/25.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface ProjectDetailsObj : NSObject
+@property (nonatomic,copy)NSString *addContent;
+@property (nonatomic,copy)NSString *name;// 填写
+@property (nonatomic,copy)NSString *profile;// 填写
+
+@property (nonatomic,copy)NSString *audios;
+@property (nonatomic,copy)NSString *avatar;// 无
+@property (nonatomic,assign)NSInteger Id;// 0
+@property (nonatomic,strong)NSString *images;// 无
+@property (nonatomic,copy)NSString *nickName;// 不填写
+@property (nonatomic,assign)CGFloat raisedAmount;// 0.0
+@property (nonatomic,assign)CGFloat targetAmount;
+@property (nonatomic,assign)NSInteger remainDays;
+@property (nonatomic,assign)NSInteger supportedCount;
+@property (nonatomic,assign)NSInteger userId;
+@property (nonatomic,copy)NSString *userName;
+@property (nonatomic,copy)NSString *showStatus;
+@property (nonatomic,assign)NSInteger statusId;
+@property (nonatomic,copy)NSString *content;// 填写
+@property (copy, nonatomic) NSString *htmlDescription;
+@property (assign, nonatomic) BOOL isExistRepayWay;//是否是回报项目
+
+
+@property (assign, nonatomic) BOOL open;
+@property (nonatomic,copy)NSString *filePath;
+@property (nonatomic,strong) NSArray *reviewImages;
+@property (assign, nonatomic) CGFloat currentCellHeight;
+@property (assign, nonatomic) CGFloat profileTextHeight;
+@property (assign, nonatomic) CGFloat nameTextHeight;
+- (CGFloat)profileTextHeight;
+- (CGFloat)contentTextHeight;
+@end

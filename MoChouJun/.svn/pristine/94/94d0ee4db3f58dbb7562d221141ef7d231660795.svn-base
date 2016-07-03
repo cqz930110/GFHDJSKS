@@ -1,0 +1,39 @@
+//
+//  ProjectReturnHeaderView.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 16/4/7.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "ProjectReturnHeaderView.h"
+#import "WeiProjectDetailsViewController.h"
+@interface ProjectReturnHeaderView()
+@property (weak, nonatomic) IBOutlet UIButton *openStateButton;
+@end
+@implementation ProjectReturnHeaderView
+#pragma mark - Action
+- (IBAction)openStateChange
+{
+    _supportReturnManager.isOpen = !_supportReturnManager.isOpen;
+    if ([self.delegate respondsToSelector:@selector(projectReturnCellOpenStateChanged:)])
+    {
+        [self.delegate projectReturnCellOpenStateChanged:self];
+    }
+}
+
+- (void)setSupportReturnManager:(SupportReturnMamager *)supportReturnManager
+{
+    _supportReturnManager = supportReturnManager;
+    if (_supportReturnManager.isOpen)
+    {
+        [_openStateButton setTitle:@"收起回报" forState:UIControlStateNormal];
+        [_openStateButton setImage:[UIImage imageNamed:@"收起"] forState:UIControlStateNormal];
+    }
+    else
+    {
+        [_openStateButton setTitle:@"查看回报" forState:UIControlStateNormal];
+        [_openStateButton setImage:[UIImage imageNamed:@"arrow"] forState:UIControlStateNormal];
+    }
+}
+@end

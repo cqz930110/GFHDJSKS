@@ -1,0 +1,29 @@
+//
+//  ProjectCrowedCollectionViewCell.m
+//  TipCtrl
+//
+//  Created by liuyong on 15/11/27.
+//  Copyright © 2015年 hesong. All rights reserved.
+//
+
+#import "ProjectCrowedCollectionViewCell.h"
+#import "Project.h"
+#import "NetWorkingUtil.h"
+@interface ProjectCrowedCollectionViewCell()
+@property (weak, nonatomic) IBOutlet UIImageView *projectImage;
+
+@end
+@implementation ProjectCrowedCollectionViewCell
+
+- (void)awakeFromNib {
+    // Initialization code
+}
+
+- (void)setProject:(Project *)project
+{
+    _project = project;
+    NSArray *imageUrls = _project.images;
+    NSString *imageStr = [NSString stringWithFormat:@"%@%@",imageUrls[0],@"!240"];
+    [NetWorkingUtil setImage:_projectImage url:imageStr defaultIconName:nil];
+}
+@end

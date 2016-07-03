@@ -1,0 +1,290 @@
+/************************************************************
+  *  * EaseMob CONFIDENTIAL 
+  * __________________ 
+  * Copyright (C) 2013-2014 EaseMob Technologies. All rights reserved. 
+  *  
+  * NOTICE: All information contained herein is, and remains 
+  * the property of EaseMob Technologies.
+  * Dissemination of this information or reproduction of this material 
+  * is strictly forbidden unless prior written permission is obtained
+  * from EaseMob Technologies.
+  */
+
+#import "ContactSelectionViewController.h"
+
+#import "EMSearchBar.h"
+#import "EMRemarkImageView.h"
+#import "EMSearchDisplayController.h"
+#import "RealtimeSearchUtil.h"
+#import "PSBarButtonItem.h"
+#import "NetWorkingUtil.h"
+#import "PSBuddy.h"
+#import "NoMsgView.h"
+@interface ContactSelectionViewController ()<UISearchBarDelegate, UISearchDisplayDelegate>
+{
+    NetWorkingUtil * _httpUtil;
+}
+@property (strong, nonatomic) NSMutableArray *contactsSource;
+@property (strong, nonatomic) NSMutableArray *selectedContacts;
+@property (strong, nonatomic) NSMutableArray *blockSelectedUsernames;
+
+//@property (strong, nonatomic) EMSearchBar *searchBar;
+//@property (strong, nonatomic) EMSearchDisplayController *searchController;
+
+@property (strong, nonatomic) UIView *footerView;
+@property (strong, nonatomic) UIScrollView *footerScrollView;
+@property (strong, nonatomic) UIButton *doneButton;
+
+@property (strong, nonatomic) NoMsgView * noDataView;
+@end
+
+@implementation ContactSelectionViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        _contactsSource = [NSMutableArray array];
+        _selectedContacts = [NSMutableArray array];
+        
+        [self setObjectComparisonStringBlock:^NSString *(id object) {
+            PSBuddy *buddy = (PSBuddy *)object;
+            return buddy.nickName;
+        }];
+        
+        [self setComparisonObjectSelector:^NSComparisonResult(id object1, id object2) {
+            PSBuddy *buddy1 = (PSBuddy *)object1;
+            PSBuddy *buddy2 = (PSBuddy *)object2;
+            
+            return [buddy1.nickName caseInsensitiveCompare: buddy2.nickName];
+        }];
+    }
+    return self;
+}
+
+- (instancetype)initWithBlockSelectedUsernames:(NSArray *)blockUsernames
+{
+    self = [self initWithNibName:nil bundle:nil];
+    if (self) {
+        _blockSelectedUsernames = [NSMutableArray array];
+        [_blockSelectedUsernames addObjectsFromArray:blockUsernames];
+    }
+    
+    return self;
+}
+
+- (void)setupNavi
+{
+    self.title = @"选择联系人";
+    
+    PSBarButtonItem *backItem = [PSBarButtonItem itemWithTitle:@"取消" barStyle:PSNavItemStyleDone target:self action:@selector(backAction)];
+    self.navigationItem.leftBarButtonItem = backItem;
+    
+    PSBarButtonItem *item = [PSBarButtonItem itemWithTitle:@"确认" barStyle:PSNavItemStyleDone target:self action:@selector(doneAction:)];
+    self.navigationItem.rightBarButtonItem = item;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    [self setupNavi];
+    self.tableView.editing = YES;
+    self.tableView.frame = CGRectMake(0, 0,SCREEN_WIDTH,SCREEN_HEIGHT);
+    self.tableView.sectionIndexColor = [UIColor colorWithHexString:@"#EBEAF1"];
+    self.tableView.sectionIndexBackgroundColor = [UIColor clearColor];
+    
+    if ([_blockSelectedUsernames count] > 0) {
+        for (NSString *username in _blockSelectedUsernames) {
+            NSInteger section = [self sectionForString:username];
+            NSMutableArray *tmpArray = [_dataSource objectAtIndex:section];
+            if (tmpArray && [tmpArray count] > 0) {
+                for (int i = 0; i < [tmpArray count]; i++) {
+                    PSBuddy *buddy = [tmpArray objectAtIndex:i];
+                    if ([buddy.nickName isEqualToString:username]) {
+                        [self.selectedContacts addObject:buddy];
+                        [self.tableView selectRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:section] animated:NO scrollPosition:UITableViewScrollPositionNone];
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+- (void)backAction
+{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+
+- (UIView *)footerView
+{
+    if (_footerView == nil) {
+        _footerView = [[UIView alloc] initWithFrame:CGRectMake(0, self.view.frame.size.height - 50, self.view.frame.size.width, 50)];
+        _footerView.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin;
+        _footerView.backgroundColor = [UIColor colorWithRed:207 / 255.0 green:210 /255.0 blue:213 / 255.0 alpha:0.7];
+        
+        _footerScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(10, 0, _footerView.frame.size.width - 30 - 70, _footerView.frame.size.height - 5)];
+        _footerScrollView.backgroundColor = [UIColor clearColor];
+        [_footerView addSubview:_footerScrollView];
+        
+        _doneButton = [[UIButton alloc] initWithFrame:CGRectMake(_footerView.frame.size.width - 80, 8, 70, _footerView.frame.size.height - 16)];
+        [_doneButton setBackgroundColor:[UIColor colorWithRed:10 / 255.0 green:82 / 255.0 blue:104 / 255.0 alpha:1.0]];
+        [_doneButton setTitle:NSLocalizedString(@"accept", @"Accept") forState:UIControlStateNormal];
+        [_doneButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        _doneButton.titleLabel.font = [UIFont systemFontOfSize:14.0];
+        [_doneButton setTitle:NSLocalizedString(@"ok", @"OK") forState:UIControlStateNormal];
+        [_doneButton addTarget:self action:@selector(doneAction:) forControlEvents:UIControlEventTouchUpInside];
+        [_footerView addSubview:_doneButton];
+    }
+    
+    return _footerView;
+}
+
+#pragma mark - Table view data source
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *CellIdentifier = @"ContactListCell";
+    BaseTableViewCell *cell = (BaseTableViewCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+    
+    // Configure the cell...
+    if (cell == nil) {
+        cell = [[BaseTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
+    }
+
+    PSBuddy *buddy = [[_dataSource objectAtIndex:indexPath.section] objectAtIndex:indexPath.row];
+    cell.buddy = buddy;
+    return cell;
+}
+
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    // Return NO if you do not want the specified item to be editable.
+    if ([_blockSelectedUsernames count] > 0) {
+
+        PSBuddy *buddy = [[_dataSource objectAtIndex:indexPath.section] objectAtIndex:indexPath.row];
+        return ![self isBlockUsername:buddy.nickName];
+    }
+    return YES;
+}
+
+#pragma mark - Table view delegate
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    id object = [[_dataSource objectAtIndex:indexPath.section] objectAtIndex:indexPath.row];
+    if (![self.selectedContacts containsObject:object])
+    {
+        [self.selectedContacts addObject:object];
+    }
+}
+
+- (void)tableView:(UITableView *)tableView didDeselectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+
+    PSBuddy *buddy = [[_dataSource objectAtIndex:indexPath.section] objectAtIndex:indexPath.row];
+    if ([self.selectedContacts containsObject:buddy]) {
+        [self.selectedContacts removeObject:buddy];
+
+    }
+}
+
+#pragma mark - private
+- (BOOL)isBlockUsername:(NSString *)username
+{
+    if (username && [username length] > 0) {
+        if ([_blockSelectedUsernames count] > 0) {
+            for (NSString *tmpName in _blockSelectedUsernames) {
+                if ([username isEqualToString:tmpName]) {
+                    return YES;
+                }
+            }
+        }
+    }
+    
+    return NO;
+}
+
+#pragma mark - Request
+- (void)loadDataSource
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [_contactsSource removeAllObjects];
+    [_dataSource removeAllObjects];
+    _httpUtil = [NetWorkingUtil netWorkingUtil];
+    [_httpUtil requestArr4MethodName:@"Friend/List" parameters:@{@"PageIndex":@1,@"PageSize":@1000} result:^(NSArray *arr, int status, NSString *msg)
+    {
+        if (status == 1)
+        {
+            [_contactsSource addObjectsFromArray:arr];
+            [_dataSource addObjectsFromArray:[self sortRecords:self.contactsSource]];
+            [MBProgressHUD dismissHUDForView:self.view];
+            [self.tableView reloadData];
+        }
+        else if (status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:@"您还没有添加联系人"];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+        
+        if (arr.count)
+        {
+            self.noDataView.hidden = YES;
+        }
+        else
+        {
+            self.noDataView.hidden = NO;
+        }
+        
+    } convertClassName:@"PSBuddy" key:@"DataSet"];
+}
+
+- (NoMsgView *)noDataView
+{
+    if (!_noDataView)
+    {
+        _noDataView = [[[NSBundle mainBundle] loadNibNamed:@"NoMsgView" owner:self options:nil] lastObject];
+        _noDataView.frame = self.view.bounds;
+        [self.view addSubview:_noDataView];
+    }
+    return _noDataView;
+}
+
+- (void)doneAction:(id)sender
+{
+    if (self.selectedContacts.count ==0)
+    {
+        [MBProgressHUD showMessag:@"没有选中哦~" toView:self.view];
+        return;
+    }
+    
+    if (_delegate && [_delegate respondsToSelector:@selector(viewController:didFinishSelectedSources:)])
+    {
+        if ([_blockSelectedUsernames count] == 0)
+        {
+            [_delegate viewController:self didFinishSelectedSources:self.selectedContacts];
+        }
+        else
+        {
+            NSMutableArray *resultArray = [NSMutableArray array];
+            for (PSBuddy *buddy in self.selectedContacts)
+            {
+                if(![self isBlockUsername:buddy.nickName])
+                {
+                    [resultArray addObject:buddy];
+                }
+            }
+            [_delegate viewController:self didFinishSelectedSources:resultArray];
+        }
+        
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+@end

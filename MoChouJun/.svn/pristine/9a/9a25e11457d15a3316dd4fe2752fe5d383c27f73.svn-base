@@ -1,0 +1,75 @@
+//
+//  ComplaintViewController.m
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/12/4.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "ComplaintViewController.h"
+#import "IQKeyboardManager.h"
+@interface ComplaintViewController ()
+@property (weak, nonatomic) IBOutlet UITextView *introduceTextView;
+@end
+
+@implementation ComplaintViewController
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title = @"举报";
+    [self backBarItem];
+    [self setupBarButtomItemWithTitle:@"发送" target:self action:@selector(introduceBtnClick) leftOrRight:NO];
+    _introduceTextView.text = @"请填写举报理由";
+    _introduceTextView.textColor = BlackDDDDDD;
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [IQKeyboardManager sharedManager].enable = NO;
+    [super viewWillAppear:animated];
+    [self.introduceTextView resignFirstResponder];
+}
+
+- (void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    [IQKeyboardManager sharedManager].enable = YES;
+}
+
+#pragma mark - UITextFieldDelegate
+- (BOOL)textViewShouldBeginEditing:(UITextView *)textView
+{
+    textView.text = @"";
+    textView.textColor = Black737373;
+    return YES;
+}
+
+#pragma mark - Action
+- (void)introduceBtnClick
+{
+    [_introduceTextView resignFirstResponder];
+    if (IsStrEmpty(_introduceTextView.text) || [_introduceTextView.text isEqualToString:@"请填写举报理由"])
+    {
+        _introduceTextView.text = @"请填写举报理由";
+        _introduceTextView.textColor = BlackDDDDDD;
+        [MBProgressHUD showMessag:@"举报人家要有理有据哟" toView:self.view];
+        return;
+    }
+    [MBProgressHUD showStatus:nil toView:self.view];
+    //改成了UserName
+    [self.httpUtil requestDic4MethodName:@"Report/Add" parameters:@{@"ReportType":_complaintType,@"Id":_username,@"Reason":_introduceTextView.text} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"你的举报阿么收到啦"];
+            [self.navigationController performSelector:@selector(popViewControllerAnimated:) withObject:[NSNumber numberWithBool:YES] afterDelay:1.5];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+    
+}
+
+@end

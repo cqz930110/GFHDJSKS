@@ -1,0 +1,23 @@
+//
+//  EditMyStartProjectViewController.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/22.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "BaseViewController.h"
+
+@interface EditMyStartProjectViewController : BaseViewController
+
+@property (nonatomic,assign)int projectId;
+
+@property (nonatomic,copy)NSString *contentStr;
+
+@property (nonatomic,assign)int uploadCount;
+
+@property (nonatomic,assign)NSInteger repayCount;
+
+@property (nonatomic,copy)NSString *titleStr;
+
+@end

@@ -1,0 +1,16 @@
+//
+//  GoSupportViewCell.h
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 16/3/22.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface GoSupportViewCell : UITableViewCell
+- (void)iconImageName:(NSString *)iconImageName title:(NSString *)title;
+@property (weak, nonatomic) IBOutlet UIImageView *optionedImageView;
+@property (weak, nonatomic) IBOutlet UILabel *titleLabel;
+@property (weak, nonatomic) IBOutlet UIImageView *iconImageView;
+@end

@@ -1,0 +1,119 @@
+//
+//  BindingNewIphoneViewController.m
+//  PublicFundraising
+//
+//  Created by liuyong on 15/10/13.
+//  Copyright © 2015年 Niuduz. All rights reserved.
+//
+
+#import "BindingNewIphoneViewController.h"
+#import "HWWeakTimer.h"
+
+@interface BindingNewIphoneViewController ()
+{
+    int timerSecond;
+}
+@property (strong, nonatomic) NSTimer *deadTimer;
+@end
+
+@implementation BindingNewIphoneViewController
+
+
+-(void)flashBtnStatus{
+    timerSecond --;
+    if (timerSecond == 0) {
+        _checkNewNumBtn.userInteractionEnabled = YES;
+        _checkNewNumBtn.backgroundColor = [UIColor colorWithHexString:@"#B37DD4"];
+        [_checkNewNumBtn setTitle:@"重新获取" forState:UIControlStateNormal];
+        [_checkNewNumBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [self stopTimer];
+    }else{
+        
+        [_checkNewNumBtn setTitle:[NSString stringWithFormat:@"获取中(%d)",timerSecond] forState:UIControlStateNormal];
+    }
+}
+
+-(void)startTimer{
+    if (!self.deadTimer) {
+        timerSecond = 60;
+        _checkNewNumBtn.backgroundColor = [UIColor colorWithHexString:@"#f0f0f0"];
+        [_checkNewNumBtn setTitleColor:[UIColor colorWithHexString:@"#bfbfbf"] forState:UIControlStateNormal];
+        [_checkNewNumBtn setTitle:[NSString stringWithFormat:@"获取中(%d)",timerSecond] forState:UIControlStateNormal];
+        _checkNewNumBtn.userInteractionEnabled = NO;
+        self.deadTimer = [HWWeakTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(flashBtnStatus) userInfo:nil repeats:YES];
+    }
+}
+
+-(void)stopTimer{
+    [self.deadTimer invalidate];
+    self.deadTimer = nil;
+}
+
+-(void)dealloc{
+    [self stopTimer];
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"绑定新手机";
+    [self backBarItem];
+    
+    _checkNewNumBtn.layer.cornerRadius = 2.0f;
+    [_checkNewNumBtn addTarget:self action:@selector(checkNewNumBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    
+    _commitNewPhoneBtn.layer.cornerRadius = 5.0f;
+    _commitNewPhoneBtn.userInteractionEnabled = NO;
+    [_commitNewPhoneBtn addTarget:self action:@selector(commitNewPhoneBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    
+    [_bindingNewIphoneTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+    [_bindingNewIphoneTextField becomeFirstResponder];
+    [_bindingNewNumTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+}
+
+- (void)textFieldChange:(UITextField *)textField
+{
+    if (IsStrEmpty(_bindingNewIphoneTextField.text)) {
+        _commitNewPhoneBtn.userInteractionEnabled = NO;
+        _commitNewPhoneBtn.backgroundColor = [UIColor colorWithHexString:@"#DDDDDD"];
+    }else if (IsStrEmpty(_bindingNewNumTextField.text)) {
+        _commitNewPhoneBtn.userInteractionEnabled = NO;
+        _commitNewPhoneBtn.backgroundColor = [UIColor colorWithHexString:@"#DDDDDD"];
+    }else if (!IsStrEmpty(_bindingNewIphoneTextField.text) && !IsStrEmpty(_bindingNewNumTextField.text)) {
+        _commitNewPhoneBtn.userInteractionEnabled = YES;
+        _commitNewPhoneBtn.backgroundColor = [UIColor colorWithHexString:@"#F3A742"];
+    }
+}
+
+- (void)checkNewNumBtnClick:(UIButton *)sender
+{
+    [self.httpUtil requestDic4MethodName:@"Auth/SendMobCode" parameters:@{@"Mobile":_bindingNewIphoneTextField.text,@"TypeId":@(4)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 2 || status == 1) {
+            [self startTimer];
+            _checkNewNumBtn.userInteractionEnabled = NO;
+            [MBProgressHUD showSuccess:msg toView:self.view];
+        }else{
+            [MBProgressHUD showError:msg toView:self.view];
+        }
+    }];
+}
+
+- (void)commitNewPhoneBtnClick:(UIButton *)sender
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"Personal/ChangeMobile" parameters:@{@"Mobile":_bindingNewIphoneTextField.text,@"Code":_bindingNewNumTextField.text,@"TypeId":@(4)} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 2 || status == 1)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"缤果"];
+            [self performSelector:@selector(delayMethod) withObject:nil afterDelay:1.5f];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+}
+
+- (void)delayMethod{
+    [self.navigationController popToRootViewControllerAnimated:YES];
+}
+@end

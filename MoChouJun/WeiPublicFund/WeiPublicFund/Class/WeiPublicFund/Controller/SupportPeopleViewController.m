@@ -1,0 +1,168 @@
+//
+//  SupportPeopleViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 15/12/1.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#import "SupportPeopleViewController.h"
+#import "SupportPeopleTableViewCell.h"
+#import "FriendDetailViewController.h"
+#import "SupportPeople.h"
+#import "User.h"
+#import "LoginViewController.h"
+#import "BaseNavigationController.h"
+
+@interface SupportPeopleViewController ()<UITableViewDataSource,UITableViewDelegate>
+{
+    int _pageIndex;
+    int _refreshNum;
+}
+@property (weak, nonatomic) IBOutlet UITableView *supportPeopleTableView;
+@property (strong, nonatomic) NSMutableArray *supportPeopleList;
+@property (assign, nonatomic) BOOL isRefreshEnd;
+@end
+
+@implementation SupportPeopleViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"支持次数";
+
+    [self setupAllProperty];
+    [self backBarItem];
+    [self setupFooterRefresh:_supportPeopleTableView];
+    [self setTableViewInfo];
+}
+
+#pragma mark - Setter
+- (NSMutableArray *)supportPeopleList
+{
+    if (!_supportPeopleList)
+    {
+        _supportPeopleList = [NSMutableArray array];
+    }
+    return _supportPeopleList;
+}
+
+- (void)setProjectId:(NSInteger)projectId
+{
+    _projectId = projectId;
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self requestSupportPeopleList];
+}
+
+#pragma mark Request
+- (void)requestSupportPeopleList
+{
+    [self.httpUtil requestArr4MethodName:@"Support/Get" parameters:@{@"Id":@(_projectId),@"PageIndex":@(_pageIndex),@"PageSize":@(_refreshNum)} result:^(NSArray *arr, int status, NSString *msg)
+     {
+         [_supportPeopleTableView.mj_footer endRefreshing];
+         self.isRefreshEnd = arr.count<_refreshNum;
+         if (status == 1 || status == 2)
+         {
+             [MBProgressHUD dismissHUDForView:self.view];
+             [self.supportPeopleList addObjectsFromArray:arr];
+             [_supportPeopleTableView reloadData];
+         }
+         else
+         {
+             [MBProgressHUD dismissHUDForView:self.view withError:msg];
+         }
+         
+         if (_supportPeopleList.count == 0)
+         {
+             self.hideNoMsg = NO;
+         }
+         else
+         {
+             self.hideNoMsg = YES;
+         }
+     } convertClassName:@"SupportPeople" key:@"DataSet"];
+}
+
+#pragma mark - Override
+- (void)footerRefreshloadData
+{
+    self.refershState = RefershStateUp;
+    _pageIndex++;
+    if (!_isRefreshEnd)
+    {
+        [self requestSupportPeopleList];
+    }
+}
+
+- (void)setIsRefreshEnd:(BOOL)isRefreshEnd
+{
+    _isRefreshEnd = isRefreshEnd;
+    
+    if (_isRefreshEnd)
+    {
+        [_supportPeopleTableView.mj_footer endRefreshingWithNoMoreData];
+    }
+    else
+    {
+        [_supportPeopleTableView.mj_footer resetNoMoreData];
+    }
+}
+
+#pragma mark - Private
+- (void)setupAllProperty
+{
+    self.refershState = RefershStateDown;
+    _refreshNum = 10;
+    _pageIndex = 1;
+    _isRefreshEnd = NO;
+}
+
+- (void)setTableViewInfo
+{
+    _supportPeopleTableView.tableFooterView = [UIView new];
+    
+    [_supportPeopleTableView registerNib:[UINib nibWithNibName:@"SupportPeopleTableViewCell" bundle:nil] forCellReuseIdentifier:@"SupportPeopleTableViewCell"];
+}
+
+#pragma mark - UITableViewDelegate & UITableViewDataSource
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return _supportPeopleList.count;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 70;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellID = @"SupportPeopleTableViewCell";
+    SupportPeopleTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[SupportPeopleTableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellID];
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.supportPeople = _supportPeopleList[indexPath.row];
+    cell.supportIconBtn.tag = indexPath.row;
+    [cell.supportIconBtn addTarget:self action:@selector(supportIconBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    return cell;
+}
+
+- (void)supportIconBtnClick:(UIButton *)sender
+{
+    
+    if (![User isLogin])
+    {
+        LoginViewController * login = [[LoginViewController alloc] init];
+        BaseNavigationController *navi = [[BaseNavigationController alloc] initWithRootViewController:login];
+        [self presentViewController:navi animated:YES completion:nil];
+        return;
+    }
+    
+    FriendDetailViewController *friendDetailsVC = [[FriendDetailViewController alloc] init];
+    SupportPeople *supports = _supportPeopleList[sender.tag];
+    friendDetailsVC.username = supports.userName;
+    [self.navigationController pushViewController:friendDetailsVC animated:YES];
+}
+
+@end

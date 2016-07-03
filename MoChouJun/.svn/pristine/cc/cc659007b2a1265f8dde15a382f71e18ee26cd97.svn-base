@@ -1,0 +1,17 @@
+//
+//  SuccessProjectViewController.h
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/6/1.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "BaseViewController.h"
+#import "ShareUtil.h"
+
+@interface SuccessProjectViewController : BaseViewController
+
+@property (nonatomic,assign)NSInteger projectId;
+@property (nonatomic,copy)NSArray *projectArr;
+@property (nonatomic,copy)NSString *projectStr;
+@end

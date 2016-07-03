@@ -1,0 +1,492 @@
+//
+//  StartSecondProjectViewController.m
+//  WeiPublicFund
+//
+//  Created by liuyong on 16/4/6.
+//  Copyright © 2016年 www.niuduz.com. All rights reserved.
+//
+
+#import "StartSecondProjectViewController.h"
+#import "AddProjectReturnViewController.h"
+#import "ProjectReturnViewController.h"
+#import "User.h"
+#import "JPUSHService.h"
+#import "WeiProjectDetailsViewController.h"
+#import "ReflectUtil.h"
+#import "SupportReturn.h"
+#import "ProjectDetailsObj.h"
+#import "MMAlertView.h"
+#import "MMPopupItem.h"
+#import "NSDate+Helper.h"
+#import "ZHBPickerView.h"
+
+@interface StartSecondProjectViewController ()<UITextViewDelegate,ProjectReturnViewControllerDelegate,UITextFieldDelegate,ZHBPickerViewDataSource,ZHBPickerViewDelegate>
+@property (weak, nonatomic) IBOutlet UITextField *amountTextField;
+@property (weak, nonatomic) IBOutlet UILabel *dataLab;
+
+@property (weak, nonatomic) IBOutlet UILabel *addStateLab;
+@property (weak, nonatomic) IBOutlet UIButton *startProjectBtn;
+
+@property (nonatomic,strong)NSMutableArray *returnDetailsArr;
+
+@property (nonatomic,assign)BOOL deleteLastImage;
+@property (nonatomic,strong)ZHBPickerView *zhBPickerView;
+@property (nonatomic,strong)NSMutableArray *dateArr;
+@property (nonatomic,assign)BOOL zhBPickBool;
+@property (nonatomic,strong)UIWindow *window;
+
+@end
+
+@implementation StartSecondProjectViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self backBarItem];
+    self.title = @"筹款设置";
+    _deleteLastImage = NO;
+    _zhBPickBool = NO;
+    _dateArr = [NSMutableArray array];
+    _window = [[[UIApplication sharedApplication] windows] lastObject];
+    [self setInfo];
+    
+    _startProjectBtn.layer.cornerRadius = 5.0f;
+    [_amountTextField addTarget:self action:@selector(textFieldChange:) forControlEvents:UIControlEventEditingChanged];
+    
+    [self getDateInfo];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    if (_returnDetailsArr.count > 0) {
+        _addStateLab.text = nil;
+    }else{
+        _addStateLab.text = @"未添加";
+    }
+}
+
+- (NSMutableArray *)returnDetailsArr
+{
+    if (!_returnDetailsArr)
+    {
+        _returnDetailsArr = [NSMutableArray arrayWithCapacity:7];
+    }
+    return _returnDetailsArr;
+}
+
+- (ProjectDetailsObj *)detailProject
+{
+    return [ReflectUtil reflectDataWithClassName:@"ProjectDetailsObj" otherObject:[self setImageDic]];
+}
+
+- (void)textFieldChange:(UITextField *)textField
+{
+    if (textField == _amountTextField)
+    {
+        if ([_amountTextField.text intValue] > 100000)
+        {
+            _amountTextField.text = @"100000";
+            [MBProgressHUD showMessag:@"融资金额不要大于100000元" toView:self.view];
+        }
+        else if ([_amountTextField.text intValue] <= 0)
+        {
+            _amountTextField.text = @"";
+        }
+    }
+
+}
+
+- (void)setInfo
+{
+    [self setBarButtonItems];
+    [self setupBarButtomItemWithImageName:@"nav_back_normal" highLightImageName:nil selectedImageName:nil target:self action:@selector(backNext) leftOrRight:YES];
+    
+    [_amountTextField setValue:[UIColor colorWithHexString:@"#DEDFE0"] forKeyPath:@"_placeholderLabel.textColor"];
+
+}
+
+- (void)setBarButtonItems
+{
+    UIBarButtonItem *myButton1 = [[UIBarButtonItem alloc] initWithTitle:@"预览" style:UIBarButtonItemStyleBordered target:self action:@selector(yulanBtnClick)];
+    myButton1.width = 40;
+    [myButton1 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+    
+    UIBarButtonItem *myButton2 = [[UIBarButtonItem alloc]initWithTitle:@"草稿" style:UIBarButtonItemStyleBordered
+        target:self action:@selector(draftBtnClick)];
+    myButton2.width = 60;
+    [myButton2 setTintColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+    
+    self.navigationItem.rightBarButtonItems = @[myButton1,myButton2];
+}
+//    more
+- (void)yulanBtnClick
+{
+    if ([_amountTextField.text intValue] <= 0) {
+        [MBProgressHUD showMessag:@"融资金额要大于0" toView:self.view];
+        return;
+    }
+    
+    if ([_amountTextField.text intValue] > 100000) {
+        [MBProgressHUD showMessag:@"融资金额不要大于100000元" toView:self.view];
+        return;
+    }
+    if ([_dataLab.text isEqual:@"请选择"]){
+        [MBProgressHUD showMessag:@"筹资期限不要大于60天" toView:self.view];
+        return;
+    }
+    
+    //    if ([self convertToInt:_introductMyTextView.text] > 100) {
+    //        [MBProgressHUD showMessag:@"您的一句话简介超过了最大长度哦" toView:self.view];
+    //        return;
+    //    }
+    
+    WeiProjectDetailsViewController *projectDetailsVC = [[WeiProjectDetailsViewController alloc] init];
+    [self.navigationController pushViewController:projectDetailsVC animated:YES];
+    [projectDetailsVC reviewProjectDetail:[self detailProject] supportReturns:[ReflectUtil reflectDataWithClassName:@"SupportReturn" otherObject:_returnDetailsArr isList:YES]];
+    //    projectDetailsVC.showType = DetailShowTypeReview;
+    //    projectDetailsVC.supportReturnMutableArr = [ReflectUtil reflectDataWithClassName:@"SupportReturn" otherObject:_returnDetailsArr isList:YES];
+    //    projectDetailsVC.projectDetails = [self detailProject];
+}
+
+//  草稿
+- (void)draftBtnClick
+{
+    MMAlertViewConfig *config = [MMAlertViewConfig globalConfig];
+    config.splitColor = NaviColor;
+    config.itemHighlightColor = [UIColor blackColor];
+    NSArray *items = @[MMItemMake(@"我知道了", MMItemTypeHighlight, nil)];
+    
+    MMAlertView *alertView = [[MMAlertView alloc]initWithTitle:@"已保存草稿" detail:@"注：您可至“我的”－“我的草稿”中查看项目草稿 如该项目成功发布，将不保留该项目的草稿" items:items];
+    alertView.attachedView = self.view;
+    [alertView show];
+}
+
+- (void)backNext
+{
+    if (!IsStrEmpty(_amountTextField.text) || [_dataLab.text isEqual:@"请选择"] || IsStrEmpty(_addStateLab.text)) {
+        UIAlertView *alert = [[UIAlertView alloc]initWithTitle:nil message:@"差点就成功了,努力完善下!" delegate:self cancelButtonTitle:@"我再努力" otherButtonTitles:@" 再想想", nil];
+        [alert show];
+    }else{
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+#pragma mark - UIAlertViewDelegate
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (buttonIndex == 1) {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+//  选择截止日期
+- (IBAction)dataClickEvent:(id)sender {
+    if (_zhBPickBool == NO) {
+        _zhBPickBool = YES;
+        _zhBPickerView =  [[[NSBundle mainBundle] loadNibNamed:@"ZHBPickerView" owner:self options:nil] firstObject];
+        
+        _zhBPickerView.dataSource = self;
+        _zhBPickerView.delegate = self;
+        _zhBPickerView.frame = CGRectMake(0, SCREEN_HEIGHT - 200, SCREEN_WIDTH, 200);
+        [_window addSubview:_zhBPickerView];
+    }else{
+        _zhBPickBool = NO;
+        [_zhBPickerView removeFromSuperview];
+    }
+    
+}
+
+//  跳转到添加众筹
+- (IBAction)raisePeriodClick:(id)sender {
+    
+//    if ([_addStateLab.text isEqual:@"未添加"]) {
+//        ProjectReturnViewController *projectVC = [ProjectReturnViewController new];
+////        projectVC.delegate = self;
+//        projectVC.detailArr = self.returnDetailsArr;
+//        [self.navigationController pushViewController:projectVC animated:NO];
+//        AddProjectReturnViewController *addProjectVC = [AddProjectReturnViewController new];
+//        addProjectVC.delegate = projectVC;
+//        [self.navigationController pushViewController:addProjectVC animated:YES];
+//    }
+//    else
+//    {
+//        ProjectReturnViewController *projectVC = [ProjectReturnViewController new];
+//        //        projectVC.delegate = self;
+//        projectVC.detailArr = self.returnDetailsArr;
+//        [self.navigationController pushViewController:projectVC animated:YES];
+//    }
+    ProjectReturnViewController *projectVC = [ProjectReturnViewController new];
+    //        projectVC.delegate = self;
+    projectVC.detailArr = self.returnDetailsArr;
+    [self.navigationController pushViewController:projectVC animated:YES];
+    
+}
+
+//   条约
+- (IBAction)treatyBtnClick:(id)sender {
+    
+    NSLog(@"-----链接");
+}
+
+//  发起众筹
+- (IBAction)startProjectClick:(id)sender
+{
+    if (IsStrEmpty(_amountTextField.text)) {
+        [MBProgressHUD showMessag:@"融资金额要大于0" toView:self.view];
+        return;
+    }
+
+    if ([_amountTextField.text intValue] > 100000) {
+        [MBProgressHUD showMessag:@"融资金额不要大于100000元" toView:self.view];
+        return;
+    }
+    if ([_dataLab.text isEqual:@"请选择"]){
+        [MBProgressHUD showMessag:@"筹资期限不要大于60天" toView:self.view];
+        return;
+    }
+
+//    if ([self convertToInt:_introductMyTextView.text] > 100) {
+//        [MBProgressHUD showMessag:@"您的一句话简介超过了最大长度哦" toView:self.view];
+//        return;
+//    }
+    
+    [self startProjectDataInfo];
+}
+
+- (void)startProjectDataInfo
+{
+    NSArray *images = [self setImageList];
+    
+    //  项目image个数
+    NSArray *productImage = [_startProjectDic objectForKey:@"ProjectImages"];
+    
+    NSInteger auidoCount = 0;
+    
+    id videoValue = [_startProjectDic objectForKey:@"VideoData"];
+    if ([videoValue isKindOfClass:[NSData class]]) {
+        auidoCount = 1;
+    }else{
+        auidoCount = 0;
+    }
+    
+    [MBProgressHUD showStatus:nil toView:self.view];
+    
+    NSString *content = [[self contentText] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    
+    [self.httpUtil requestDataMethodName:@"CrowdFund/Post" parameters:@{@"Name":[[_startProjectDic objectForKey:@"Title"] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding],@"TargetAmount":_amountTextField.text,@"DueDays":_dataLab.text,@"Content":content,@"Images":@(productImage.count-1),@"Audios":@(auidoCount),@"RepayList":[self repayListStr]} datas:images result:^(NSDictionary *obj, int status, NSString *msg) {
+        if (status == 1 || status == 2)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"发布成功,分享给大家,会更快获得支持哦"];
+            [self performSelector:@selector(delayMethod) withObject:nil afterDelay:1.5f];
+            
+            // 设置 推送别名
+            User *userInfo = [User shareUser];
+            NSString *crowdFundIdStr = [NSString stringWithFormat:@"%@",[obj valueForKey:@"CrowdFundId"]];
+            NSString *tagStr = [NSString stringWithFormat:@"mochoujun_%@",crowdFundIdStr];// mochoujun_项目ID
+            [JPUSHService setTags:[NSSet setWithObject:tagStr] aliasInbackground:userInfo.userName];
+            
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+        }
+    }];
+}
+
+- (void)delayMethod{
+    // 刷新微众筹列表
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"UpdateWeiProject" object:nil];
+    [self.navigationController popToRootViewControllerAnimated:YES];
+}
+
+- (NSMutableArray *)setImageList
+{
+    NSMutableArray *allImage = [NSMutableArray array];
+    
+    //  判断音频
+    id videoValue = [_startProjectDic objectForKey:@"VideoData"];
+    if ([videoValue isKindOfClass:[NSData class]])
+    {
+        [allImage addObject:videoValue];
+    }
+    //  判断项目图片
+    NSArray *porjectImage = [_startProjectDic objectForKey:@"ProjectImages"];
+    
+    if (porjectImage.count > 1)
+    {
+        [allImage addObjectsFromArray:porjectImage];
+    }
+    [allImage removeLastObject];
+    //  判断回报图片
+    if (_returnDetailsArr.count > 0) {
+        for (int j = 0; j < _returnDetailsArr.count; j ++) {
+            NSDictionary *support = _returnDetailsArr[j];
+            id images = [support valueForKey:@"Images"];
+            NSUInteger count = [(NSArray *)images count];
+            if (count) {
+                for (int k = 0; k < count; k ++) {
+                    [allImage addObject:(NSArray *)images[k]];
+                }
+            }
+        }
+    }
+    
+    return allImage;
+}
+
+- (NSString *)contentText
+{
+    NSMutableString *content = [NSMutableString stringWithFormat:@"【项目介绍】|||%@###===",[[_startProjectDic objectForKey:@"Introduct"] stringByReplacingOccurrencesOfString:@"\n" withString:@"###"]];
+    return content;
+}
+
+- (NSString *)repayListStr
+{
+    NSMutableArray *repayList = [NSMutableArray array];
+    for (NSDictionary *dic in _returnDetailsArr) {
+        NSMutableDictionary *muDic = [NSMutableDictionary dictionaryWithDictionary:dic];
+        id images = muDic[@"Images"];
+        muDic[@"Images"] = @([(NSArray *)images count]);
+        [repayList addObject:muDic];
+    }
+    
+    NSString *repayListStr = @"";
+    if (repayList.count)
+    {
+        NSData *data = [NSJSONSerialization dataWithJSONObject:repayList options:NSJSONWritingPrettyPrinted error:nil];
+        repayListStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    }
+    
+    return repayListStr;
+}
+
+- (NSDictionary *)setImageDic
+{
+    
+    NSString *content = [self contentText];
+    NSMutableDictionary *dic = [NSMutableDictionary dictionary];
+    dic[@"Name"] = [_startProjectDic objectForKey:@"Title"];
+    dic[@"TargetAmount"] = _amountTextField.text;
+    dic[@"RaisedAmount"] = @"0";
+    dic[@"NickName"] = [User shareUser].nickName;
+    dic[@"Avatar"] = [User shareUser].avatar;
+    dic[@"RemainDays"] = _dataLab.text;
+    dic[@"Profile"] = nil;
+    dic[@"Content"] = content;
+    dic[@"Images"] = @"";
+    dic[@"StatusId"] = @"-1";
+    dic[@"ShowStatus"] = [NSString stringWithFormat:@"剩余%@天",_dataLab.text];
+    
+    if ([[_startProjectDic objectForKey:@"VideoData"] isKindOfClass:[NSData class]])
+    {
+        dic[@"Audios"] = [_startProjectDic objectForKey:@"Video"];
+        dic[@"FilePath"] = [_startProjectDic objectForKey:@"Video"];
+    }
+    else
+    {
+        dic[@"Audios"] = @"";
+    }
+
+    NSArray *imageArr = [_startProjectDic objectForKey:@"ProjectImages"];
+    NSMutableArray *imagesArr = [NSMutableArray array];
+    for (int i = 0; i < imageArr.count - 1; i ++) {
+        [imagesArr addObject:imageArr[i]];
+    }
+    if (imageArr.count > 1)
+    {
+        dic[@"ReviewImages"] = imagesArr;
+    }
+    return dic;
+}
+
+- (void)returnSavedReturnUserInfo:(NSMutableArray *)userArr
+{
+    _returnDetailsArr = userArr;
+}
+
+//  键盘return键
+- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text{
+    if ([text isEqualToString:@"\n"]){
+        [textView resignFirstResponder];
+        return NO;
+    }
+    
+    return YES;
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    
+    [textField resignFirstResponder];
+    return YES;
+}
+
+- (void)textFieldDidEndEditing:(UITextField *)textField
+{
+    int textValue = [textField.text intValue];
+    if (textValue == 0)
+    {
+        textField.text = @"";
+    }
+    else
+    {
+        textField.text = [NSString stringWithFormat:@"%zd",[textField.text intValue]];
+    }
+}
+
+-(int)convertToInt:(NSString*)strtemp {
+    
+    int strlength = 0;
+    char* p = (char*)[strtemp cStringUsingEncoding:NSUnicodeStringEncoding];
+    for (int i=0 ; i<[strtemp lengthOfBytesUsingEncoding:NSUnicodeStringEncoding] ;i++) {
+        if (*p) {
+            p++;
+            strlength++;
+        }
+        else {
+            p++;
+        }
+    }
+    return strlength;
+}
+
+- (void)getDateInfo
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (NSInteger i = 1; i <= 60; i ++) {
+            NSString *dateStr = [NSDate GetTomorrowDay:[NSDate date] abort:i];
+            dateStr = [NSString stringWithFormat:@"%@   共%ld天",dateStr,(long)i];
+            [_dateArr addObject:dateStr];
+        }
+    });
+}
+
+//   zhBPickerView  delegate
+- (NSInteger)numberOfComponentsInPickerView:(ZHBPickerView *)pickerView
+{
+    return 1;
+}
+
+- (NSArray *)pickerView:(ZHBPickerView *)pickerView titlesForComponent:(NSInteger)component
+{
+    if (component == 0) {
+        return _dateArr;
+    }
+    return nil;
+}
+
+- (void)pickerView:(ZHBPickerView *)pickerView didSelectContent:(NSString *)content
+{
+    _zhBPickBool = NO;
+    _dataLab.text = content;
+    [_dataLab setTextColor:[UIColor colorWithHexString:@"#2B2B2B"]];
+    if ([content isEqual:@""]) {
+        _dataLab.text = _dateArr[0];
+    }
+}
+
+- (void)cancelSelectPickerView:(ZHBPickerView *)pickerView
+{
+    _zhBPickBool = NO;
+    [_zhBPickerView removeFromSuperview];
+}
+
+@end

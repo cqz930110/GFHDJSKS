@@ -1,0 +1,77 @@
+//
+//  OpinionFeedbackViewController.m
+//  PublicFundraising
+//
+//  Created by liuyong on 15/10/14.
+//  Copyright © 2015年 Niuduz. All rights reserved.
+//
+#define TEXT_MAXLENGTH           @"100"
+#import "OpinionFeedbackViewController.h"
+#import "NSString+Adding.h"
+
+@interface OpinionFeedbackViewController ()<UITextViewDelegate>
+
+@end
+
+@implementation OpinionFeedbackViewController
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"意见反馈";
+    self.view.backgroundColor = [UIColor whiteColor];
+    [self backBarItem];
+    
+    _opinionTextView.delegate = self;
+    
+    [_opinionTextView becomeFirstResponder];
+    
+    _commitOpinionBtn.layer.cornerRadius = 5.0f;
+    _commitOpinionBtn.userInteractionEnabled = NO;
+    [_commitOpinionBtn addTarget:self action:@selector(commitOpinionBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+}
+
+- (void)textViewDidChange:(UITextView *)textView
+{
+    if (![textView.text isEqualToString:@""]) {
+        _opinionLab.hidden = YES;
+        _commitOpinionBtn.userInteractionEnabled = YES;
+        _commitOpinionBtn.backgroundColor = [UIColor colorWithHexString:@"#B37DD4"];
+    }
+    if ([textView.text isEqualToString:@""]) {
+        _opinionLab.hidden = NO;
+        _commitOpinionBtn.userInteractionEnabled = NO;
+        _commitOpinionBtn.backgroundColor = [UIColor colorWithHexString:@"#DDDDDD"];
+    }
+    
+    if (_opinionTextView.text.length > 100) {
+        [MBProgressHUD showMessag:@"亲，你已经超出最大字数了哦" toView:self.view];
+        _limitLab.text = @"0字";
+        NSRange rgs = {0,TEXT_MAXLENGTH.intValue};
+        NSString *s = [textView.text substringWithRange:rgs];
+        [textView setText:[textView.text stringByReplacingOccurrencesOfString:textView.text withString:s]];
+    }else{
+        _limitLab.text = [NSString stringWithFormat:@"%lu字",TEXT_MAXLENGTH.integerValue - _opinionTextView.text.length];
+    }
+}
+
+- (void)commitOpinionBtnClick:(UIButton *)sender
+{
+    [MBProgressHUD showStatus:nil toView:self.view];
+    [self.httpUtil requestDic4MethodName:@"Personal/Feedback" parameters:@{@"Content":_opinionTextView.text} result:^(NSDictionary *dic, int status, NSString *msg) {
+        if (status == 2 || status == 1)
+        {
+            [MBProgressHUD dismissHUDForView:self.view withSuccess:@"谢谢帮助阿么成长"];
+            [self performSelector:@selector(delayMethod) withObject:nil afterDelay:1.5f];
+        }
+        else
+        {
+            [MBProgressHUD dismissHUDForView:self.view withError:msg];
+    
+        }
+    }];
+}
+
+- (void)delayMethod
+{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+@end

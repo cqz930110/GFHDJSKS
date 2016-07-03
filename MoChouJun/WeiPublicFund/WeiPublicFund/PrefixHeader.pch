@@ -1,0 +1,43 @@
+//
+//  PrefixHeader.pch
+//  WeiPublicFund
+//
+//  Created by zhoupushan on 15/11/26.
+//  Copyright © 2015年 www.niuduz.com. All rights reserved.
+//
+
+#ifndef PrefixHeader_pch
+#define PrefixHeader_pch
+
+#ifndef __IPHONE_3_0
+//#warning "This project uses features only available in iOS SDK 3.0 and later."
+#endif
+
+#ifdef __OBJC__
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#import "MacroDefine.h"
+//#import "PSExtern.h"
+#import "UIView+SNFoundation.h"
+#import "UIColor+SNFoundation.h"
+//#import "PSActionSheet.h"
+
+#import "MBProgressHUD+Add.h"
+#import "UIViewController+HUD.h"
+#import "EaseUI.h"
+//#import "NSString+Valid.h"
+#pragma mark ----------------------------- Config
+#define IsLoadBundle [[[[NSBundle mainBundle] infoDictionary] valueForKey:@"CFBundleIdentifier"] isEqualToString:@"com.niuduz.MoChouJun"]
+
+#pragma mark ----------------------------- Common
+
+
+#pragma mark ----------------------------- UI
+
+
+#pragma mark ----------------------------- NotifacationName
+
+
+#endif
+
+#endif /* PrefixHeader_pch */

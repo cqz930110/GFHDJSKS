@@ -1,0 +1,25 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "1114051c-4246-8b45-96e4-da4a8b320180++505",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+    "1114051c-4246-8b45-96e4-da4a8b320180++505" : {
+
+    }
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "1114051c-4246-8b45-96e4-da4a8b320180++505" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "17394C4F-A20A-44C2-A170-6CD226D6A3B7",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "1114051c-4246-8b45-96e4-da4a8b320180++505" : "WeiPublicFund\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "WeiPublicFund",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "WeiPublicFund\/WeiPublicFund.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/win-bq8v0u94eq0\/svn\/WeiCrowdFundApp",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "1114051c-4246-8b45-96e4-da4a8b320180++505"
+    }
+  ]
+}
