@@ -43,6 +43,8 @@
     [MBProgressHUD showStatus:nil toView:self.view];
     NetWorkingUtil *util = [NetWorkingUtil netWorkingUtil];
     [util requestDic4MethodName:@"Home/Banner" parameters:nil result:^(NSDictionary *dic, int status, NSString *msg) {
+        
+        NSLog(@"99999-----%@",dic);
         if (status == 1 || status == 2) {
             NSArray *arr = [dic objectForKey:@"TagList"];
             NSMutableArray *bannarImageArr = [dic objectForKey:@"Banners"];

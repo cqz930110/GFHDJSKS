@@ -5585,7 +5585,6 @@
 				TargetAttributes = {
 					0E501E631C070AE200B15FE4 = {
 						CreatedOnToolsVersion = 7.1.1;
-						DevelopmentTeam = 6W5UTJ2U6X;
 						SystemCapabilities = {
 							com.apple.BackgroundModes = {
 								enabled = 1;
@@ -6673,8 +6672,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
-				CODE_SIGN_IDENTITY = "iPhone Distribution: NiuDu (Shanghai) Network Technology Co., Ltd. (A39273N8ET)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: NiuDu (Shanghai) Network Technology Co., Ltd. (A39273N8ET)";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: li miao (CS89YLBRY9)";
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -6759,7 +6758,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.niuduz.MoChouJun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "d9bec8e4-e890-4be5-840d-9efc7e5000ef";
+				PROVISIONING_PROFILE = "3890f725-f9e0-433a-90be-131651bba45d";
 				USER_HEADER_SEARCH_PATHS = "\"$(SRCROOT)/Libs/JPush\"";
 			};
 			name = Debug;
@@ -6770,8 +6769,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
-				CODE_SIGN_IDENTITY = "iPhone Distribution: NiuDu (Shanghai) Network Technology Co., Ltd. (A39273N8ET)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: NiuDu (Shanghai) Network Technology Co., Ltd. (A39273N8ET)";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: li miao (CS89YLBRY9)";
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -6856,7 +6855,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.niuduz.MoChouJun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "d9bec8e4-e890-4be5-840d-9efc7e5000ef";
+				PROVISIONING_PROFILE = "3890f725-f9e0-433a-90be-131651bba45d";
 				USER_HEADER_SEARCH_PATHS = "\"$(SRCROOT)/Libs/JPush\"";
 			};
 			name = Release;

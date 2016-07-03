@@ -6,10 +6,12 @@
     }
   },
   "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "549903D074BBE53E7899A19BE638607DD2AE8024" : 0,
     "1114051c-4246-8b45-96e4-da4a8b320180++505" : 0
   },
   "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "8197A202-2F0E-4C61-94C4-C1D7856A4A44",
   "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "549903D074BBE53E7899A19BE638607DD2AE8024" : "",
     "1114051c-4246-8b45-96e4-da4a8b320180++505" : "MoChouJun\/"
   },
   "DVTSourceControlWorkspaceBlueprintNameKey" : "WeiPublicFund",
@@ -20,6 +22,11 @@
       "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/win-bq8v0u94eq0\/svn\/WeiCrowdFundApp",
       "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
       "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "1114051c-4246-8b45-96e4-da4a8b320180++505"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/cqz930110\/GFHDJSKS.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "549903D074BBE53E7899A19BE638607DD2AE8024"
     }
   ]
 }
