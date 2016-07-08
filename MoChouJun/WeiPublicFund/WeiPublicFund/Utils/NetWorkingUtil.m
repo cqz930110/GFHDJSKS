@@ -51,14 +51,16 @@ static AFHTTPRequestOperationManager *manager;
 }
 
 - (id)init {
-    if (IsLoadBundle)
-    {
-        _mainURL = @"http://www.mochoujun.com/Api/";//@"http://www.mochoujun.com/n/Api/"
-    }
-    else
-    {
-        _mainURL = @"http://192.168.1.220:8092/Api/";//    http://192.168.1.220:8092/Api/
-    }
+//    if (IsLoadBundle)
+//    {
+//        _mainURL = @"http://www.mochoujun.com/Api/";//@"http://www.mochoujun.com/n/Api/"
+//    }
+//    else
+//    {
+//        _mainURL = @"http://192.168.1.220:8092/Api/";//    http://192.168.1.220:8092/Api/
+//    }
+    _mainURL = @"http://www.mochoujun.com/Api/";//@"http://www.mochoujun.com/n/Api/"
+
     if (instance) {
         return instance;
     }

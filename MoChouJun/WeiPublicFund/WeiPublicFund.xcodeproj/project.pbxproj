@@ -2762,7 +2762,6 @@
 			isa = PBXGroup;
 			children = (
 				0EB31C211C9BEE7700DD5D17 /* Pay */,
-				0E716B961C07EF4B00DD0542 /* EaseMob */,
 				0E1448891C071422003A0DFF /* Common */,
 				0E14488C1C071422003A0DFF /* Login */,
 				0E14488B1C071422003A0DFF /* Home */,
@@ -2950,6 +2949,7 @@
 				2DC5825B1C1A651800991F2D /* NoNetWorkView.xib */,
 				2DB322D81CA9147C00AA1A95 /* NoticeView.h */,
 				2DB322D91CA9147C00AA1A95 /* NoticeView.m */,
+				0E716B961C07EF4B00DD0542 /* EaseMob */,
 				2DB322DB1CA914A200AA1A95 /* NoticeView.xib */,
 				0E72DF4B1C16DEA1007231EB /* HomeMessageView.xib */,
 				0E72DF4C1C16DEA1007231EB /* HWWeakTimer.h */,
@@ -3552,7 +3552,8 @@
 				0E716B9F1C07FE2A00DD0542 /* FriendApply */,
 				0E716B9B1C07FDED00DD0542 /* Contacts */,
 			);
-			path = EaseMob;
+			name = EaseMob;
+			path = ../EaseMob;
 			sourceTree = "<group>";
 		};
 		0E716B9B1C07FDED00DD0542 /* Contacts */ = {

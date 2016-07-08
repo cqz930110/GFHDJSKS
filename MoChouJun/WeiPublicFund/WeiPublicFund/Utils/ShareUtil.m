@@ -191,6 +191,7 @@
  *
  *  @return 返回 已经安装了的三方类型
  */
+
 + (NSArray *)showInstalledThreeButtons
 {
     BOOL isHideSina =[ShareUtil hideButtonWithThreeType:UMShareToSina];
